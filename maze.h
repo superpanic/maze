@@ -39,6 +39,7 @@ int column(int index);
 int size();
 Cell *random_cell();
 
+char *to_string();
 void run_link_test();
 void print_ascii_maze();
 

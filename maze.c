@@ -169,6 +169,11 @@ int size() {
 
 //
 
+char *to_string() {
+	char *s = "\0";
+	return s;
+}
+
 void run_link_test() {
 	int a_index = index_at(1,2);
 	int b_index = index_at(2,2);
@@ -189,6 +194,9 @@ void print_ascii_maze() {
 		printf("\n");
 	}
 }
+
+
+
 
 //
 
