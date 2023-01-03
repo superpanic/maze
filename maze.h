@@ -5,14 +5,14 @@
 #include <string.h>
 #include "tigr/tigr.h"
 
-typedef struct cell {
+typedef struct Cell {
 	uint8_t row;
 	uint8_t column;
-	struct cell *north;
-	struct cell *south;
-	struct cell *east;
-	struct cell *west;
-	struct cell **links;
+	struct Cell *north;
+	struct Cell *south;
+	struct Cell *east;
+	struct Cell *west;
+	struct Cell **links;
 	int links_size;
 	int links_count;
 } Cell;
@@ -27,12 +27,12 @@ void configure_cells();
 void link(Cell *ca, Cell *cb, bool bi);
 bool unlink(Cell *ca, Cell *cb, bool bi);
 bool linked(Cell *ca, Cell *cb);
+bool find_link(Cell *ca, Cell *cb);
 Cell **links(Cell *c);
 Cell **neighbors(Cell *c);
 
 void binary_tree_maze();
 
-bool find_link(Cell *ca, Cell *cb);
 void free_all();
 int index_at(int col, int row);
 int row(int index);
@@ -41,8 +41,6 @@ int size();
 Cell *random_cell();
 
 char *to_string();
-void run_link_test();
-void print_ascii_maze();
 
 void die(char *e);
 

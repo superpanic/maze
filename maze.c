@@ -98,6 +98,13 @@ bool linked(Cell *ca, Cell *cb) {
 	return(find_link(ca,cb)>0);
 }
 
+bool find_link(Cell *ca, Cell *cb) {
+	for(int i=0; i<ca->links_count; i++) {
+		if(ca->links[i] == cb) return true;
+	}
+	return false;
+}
+
 Cell** neighbors(Cell *c) {
 	if(DEBUG) 
 		printf("    Cell **neighbors(Cell *c)\n    Warning: Remember to free() return value.\n");
@@ -129,13 +136,6 @@ void binary_tree_maze() {
 }
 
 //
-
-bool find_link(Cell *ca, Cell *cb) {
-	for(int i=0; i<ca->links_count; i++) {
-		if(ca->links[i] == cb) return true;
-	}
-	return false;
-}
 
 void free_all() {
 	if(!Grid) return;
@@ -245,30 +245,6 @@ char *to_string() {
 
 	return str;
 }
-
-void run_link_test() {
-	int a_index = index_at(1,2);
-	int b_index = index_at(2,2);
-	link(Grid[a_index], Grid[b_index], true);
-	int l = find_link(Grid[a_index], Grid[b_index]);
-	printf("link found at %d\n", l);
-}
-
-void print_ascii_maze() {
-	printf("\n");
-	for(int y=0; y<Rows; y++) {
-		for(int x=0; x<Columns; x++) {
-			if(Grid[index_at(x,y)]->links_count>0)
-				printf("[ ] ");
-			else
-				printf("[X] ");
-		}
-		printf("\n");
-	}
-}
-
-
-
 
 //
 
