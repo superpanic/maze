@@ -13,27 +13,26 @@ int main(int argc, char *argv[]) {
 		int co = atoi(argv[1]);
 		int ro = atoi(argv[2]);
 		if(co>1 && ro>1) {
-			Rows = co;
-			Columns = ro;
+			Rows = ro;
+			Columns = co;
 		} else {
 			die("Please provide parameters [columns]>1 and [rows]>1 ");
 		}
 	}
 
-	initialize(Rows,Columns);
-
+	initialize(Rows, Columns);
 	binary_tree_maze();
 	
-	char *maze_to_string = to_string();
-	printf("%s", maze_to_string);
-	free(maze_to_string);
+	char *maze_str = to_string();
+	printf("%s", maze_str);
+	free(maze_str);
 	
 	free_all();
 	return 0;
 }
 
 void initialize(int rows, int columns) {
-	long cell_count = Columns * Rows;
+	int cell_count = Columns * Rows;
 	Grid = (Cell**)malloc(cell_count * sizeof(Cell*));
 	if(!Grid) die("Failed to allocate memory for grid cells!");
 	for(int i=0; i<cell_count; i++) {
@@ -49,15 +48,15 @@ void init_cell(Cell *c, uint8_t column, uint8_t row) {
 	c->column = column;
 	c->row = row;
 	c->links_size = LINKS_SIZE_STEP;
-	c->links = (Cell **)malloc(c->links_size * sizeof(Cell*));
+	c->links = (Cell **)calloc(c->links_size, sizeof(Cell*));
 	if(!c->links) die("Failed to allocate memory to cell links array.");
 	c->links_count = 0;
 }
 
 void configure_cells() {
 	if(!Grid) die("Grid not initilized.");
-	long cell_count = Columns * Rows;
-	for(int i=0;i<cell_count;i++) {
+	int cell_count = Columns * Rows;
+	for(int i=0; i<cell_count; i++) {
 		Cell *c = Grid[i];
 		if(i>=Columns) c->north = Grid[i-Columns];
 		if(row(i)<Rows-1) c->south = Grid[i+Columns];
