@@ -3,7 +3,7 @@
 #define COLS 8
 #define ROWS 5
 #define DEBUG true
-#define LINKS_SIZE_STEP 16
+#define LINKS_SIZE_STEP 4
 
 int main(int argc, char *argv[]) {
 	Rows = ROWS;
@@ -23,7 +23,10 @@ int main(int argc, char *argv[]) {
 	initialize(Rows,Columns);
 
 	binary_tree_maze();
-	print_ascii_maze();
+	
+	char *maze_to_string = to_string();
+	printf("%s", maze_to_string);
+	free(maze_to_string);
 	
 	free_all();
 	return 0;
@@ -97,7 +100,9 @@ bool linked(Cell *ca, Cell *cb) {
 }
 
 Cell** neighbors(Cell *c) {
-	// needs to me freed by caller!
+	if(DEBUG) 
+		printf("    Cell **neighbors(Cell *c)\n    Warning: Remember to free() return value.\n");
+
 	Cell **neighbors = (Cell**) calloc(4, sizeof(Cell*));
 	int i=0;
 	if(c->north) neighbors[i++] = c->north;
@@ -126,11 +131,11 @@ void binary_tree_maze() {
 
 //
 
-int find_link(Cell *ca, Cell *cb) {
+bool find_link(Cell *ca, Cell *cb) {
 	for(int i=0; i<ca->links_count; i++) {
-		if(ca->links[i] == cb) return i;
+		if(ca->links[i] == cb) return true;
 	}
-	return 0;
+	return false;
 }
 
 void free_all() {
@@ -170,8 +175,76 @@ int size() {
 //
 
 char *to_string() {
-	char *s = "\0";
-	return s;
+	if(DEBUG) 
+		printf("    char *toString()\n    Warning: Remember to free() return value.\n");
+
+	int cell_count = Rows * Columns;
+	char *str = (char*)malloc(cell_count+1);
+	str[cell_count] = '\0';
+	char *str_header = str;
+
+	strcpy(str_header,"+");
+	str_header++;
+	
+	for(int col=0; col<Columns; col++) {
+		strcpy(str_header,"---+");
+		str_header += 4;
+	}
+
+	strcpy(str_header, "\n");
+	str_header++;
+
+	for(int row=0; row<Rows; row++) {
+		char *top = "|";
+		char *bottom = "+";
+
+		for(int col=0; col<Columns; col++) {
+			Cell *c = Grid[index_at(col,row)];
+
+			char *body = "   ";
+
+			// top + body + east_boundary
+			// |   |
+
+			strcpy(str_header, top); // "|"
+			str_header++;
+			
+			strcpy(str_header, body); // "   "
+			str_header += 3;
+			
+			char *east_boundary = (linked(c, c->east)) ? " " : "|";
+			strcpy(str_header, east_boundary);
+			str_header++;
+
+			// bottom + south_boundary + corner
+			// +---+
+
+			strcpy(str_header, bottom);
+			str_header++;
+
+			char *south_boundary = (linked(c, c->south)) ? "   " : "---";
+			strcpy(str_header, south_boundary);
+			str_header += 3;
+
+			char *corner = "+";
+			strcpy(str_header, corner);
+			str_header++;
+
+		}
+
+		strcpy(str_header, top);
+		str_header++;
+		strcpy(str_header, "\n");
+		str_header++;
+
+		strcpy(str_header, bottom);
+		str_header++;
+		strcpy(str_header, "\n");
+		str_header++;
+
+	}
+
+	return str;
 }
 
 void run_link_test() {

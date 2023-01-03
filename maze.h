@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include "tigr/tigr.h"
 
 typedef struct cell {
@@ -31,7 +32,7 @@ Cell **neighbors(Cell *c);
 
 void binary_tree_maze();
 
-int find_link(Cell *ca, Cell *cb);
+bool find_link(Cell *ca, Cell *cb);
 void free_all();
 int index_at(int col, int row);
 int row(int index);
