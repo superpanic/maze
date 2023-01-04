@@ -1,26 +1,26 @@
 #include "maze.h"
 
 #define COLS 8
-#define ROWS 5
+#define ROWS 8
 #define DEBUG true
 #define LINKS_SIZE_STEP 4
 
 int main(int argc, char *argv[]) {
-	Rows = ROWS;
 	Columns = COLS;
+	Rows = ROWS;
 
 	if(argc == 3) {
 		int co = atoi(argv[1]);
 		int ro = atoi(argv[2]);
 		if(co>1 && ro>1) {
-			Rows = ro;
 			Columns = co;
+			Rows = ro;
 		} else {
 			die("Please provide parameters [columns]>1 and [rows]>1 ");
 		}
 	}
 
-	initialize(Rows, Columns);
+	initialize();
 	binary_tree_maze();
 	
 	char *maze_str = to_string();
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void initialize(int rows, int columns) {
+void initialize() {
 	int cell_count = Columns * Rows;
 	Grid = (Cell**)malloc(cell_count * sizeof(Cell*));
 	if(!Grid) die("Failed to allocate memory for grid cells!");
@@ -44,7 +44,7 @@ void initialize(int rows, int columns) {
 	configure_cells();
 }
 
-void init_cell(Cell *c, uint8_t column, uint8_t row) {
+void init_cell(Cell *c, int column, int row) {
 	c->column = column;
 	c->row = row;
 	c->links_size = LINKS_SIZE_STEP;
@@ -121,7 +121,7 @@ Cell** neighbors(Cell *c) {
 //
 
 void binary_tree_maze() {
-	int cell_count = Rows * Columns;
+	int cell_count = Columns * Rows;
 	for(int i=0; i<cell_count; i++) {
 		int j = 0;
 		Cell *neighbors[2];
@@ -177,9 +177,13 @@ char *to_string() {
 	if(DEBUG) 
 		printf("    char *toString()\n    Warning: Remember to free() return value.\n");
 
-	int cell_count = Rows * Columns;
-	char *str = (char*)malloc(cell_count+1);
-	str[cell_count] = '\0';
+	int str_size = (Columns * 4 + 1) * (Rows * 2 + 1);
+	str_size += Rows*2; // for newlines, 2 newlines for each row
+	str_size += 1; // for '\0'
+
+	char *str = (char*)malloc(str_size);
+	str[str_size-1] = '\0';
+
 	char *str_header = str;
 
 	strcpy(str_header,"+");
@@ -194,55 +198,53 @@ char *to_string() {
 	str_header++;
 
 	for(int row=0; row<Rows; row++) {
-		char *top = "|";
-		char *bottom = "+";
+
+		int line_length = Columns * 4+1;
+		char *top = (char*)malloc(line_length+1);   // +1 for '\0
+		char *bottom = (char*)malloc(line_length+1);   // +1 for '\0
+
+		top[line_length] = '\0';
+		bottom[line_length] = '\0'; 
+
+		char *topheader = top;
+		strcpy(topheader,"|");
+		topheader++;
+		
+		char *bottomheader = bottom;
+		strcpy(bottomheader,"+");
+		bottomheader++;
 
 		for(int col=0; col<Columns; col++) {
 			Cell *c = Grid[index_at(col,row)];
-
-			char *body = "   ";
-
-			// top + body + east_boundary
-			// |   |
-
-			strcpy(str_header, top); // "|"
-			str_header++;
 			
-			strcpy(str_header, body); // "   "
-			str_header += 3;
-			
-			char *east_boundary = (linked(c, c->east)) ? " " : "|";
-			strcpy(str_header, east_boundary);
-			str_header++;
+			if(linked(c,c->east)) {
+				strcpy(topheader,"    ");
+			} else {
+				strcpy(topheader,"   |");
+			}
+			topheader+=4;
 
-			// bottom + south_boundary + corner
-			// +---+
-
-			strcpy(str_header, bottom);
-			str_header++;
-
-			char *south_boundary = (linked(c, c->south)) ? "   " : "---";
-			strcpy(str_header, south_boundary);
-			str_header += 3;
-
-			char *corner = "+";
-			strcpy(str_header, corner);
-			str_header++;
-
+			if(linked(c,c->south)) {
+				strcpy(bottomheader,"   +");
+			} else {
+				strcpy(bottomheader,"---+");
+			}
+			bottomheader+=4;
 		}
 
 		strcpy(str_header, top);
+		str_header += line_length;
+		strcpy(str_header,"\n");
 		str_header++;
-		strcpy(str_header, "\n");
-		str_header++;
-
+		
 		strcpy(str_header, bottom);
-		str_header++;
-		strcpy(str_header, "\n");
+		str_header += line_length;
+		strcpy(str_header,"\n");
 		str_header++;
 
+		free(top);
+		free(bottom);
 	}
-
 	return str;
 }
 
