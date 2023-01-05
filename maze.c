@@ -1,7 +1,7 @@
 #include "maze.h"
 
-#define COLS 3
-#define ROWS 2
+#define COLS 2
+#define ROWS 3
 #define DEBUG true
 #define LINKS_SIZE_STEP 4
 
@@ -39,7 +39,7 @@ void initialize() {
 	for(int i=0; i<cell_count; i++) {
 		Grid[i] = (Cell*) malloc(sizeof(Cell));
 		if(!Grid[i]) die("Failed to allocate memory to cell.");
-		init_cell(Grid[i], i % Columns, i / Rows);
+		init_cell(Grid[i], i % Columns, i / Columns);
 		if(DEBUG) printf("cell %d: column: %d, row: %d\n", i, Grid[i]->column, Grid[i]->row);
 	}
 	configure_cells();
@@ -158,7 +158,7 @@ int index_at(int col, int row) {
 }
 
 int row(int index) {
-	return index / Rows;
+	return index / Columns;
 }
 
 int column(int index) {
