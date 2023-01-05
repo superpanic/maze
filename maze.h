@@ -40,7 +40,8 @@ int column(int index);
 int size();
 Cell *random_cell();
 
-char *to_string();
+size_t get_maze_string_size();
+void to_string(char str_out[], size_t str_size);
 
 void die(char *e);
 

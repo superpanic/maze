@@ -1,7 +1,7 @@
 #include "maze.h"
 
-#define COLS 8
-#define ROWS 8
+#define COLS 3
+#define ROWS 2
 #define DEBUG true
 #define LINKS_SIZE_STEP 4
 
@@ -23,9 +23,10 @@ int main(int argc, char *argv[]) {
 	initialize();
 	binary_tree_maze();
 	
-	char *maze_str = to_string();
+	size_t str_size = get_maze_string_size();
+	char maze_str[str_size];
+	to_string(maze_str, str_size);
 	printf("%s", maze_str);
-	free(maze_str);
 	
 	free_all();
 	return 0;
@@ -71,10 +72,11 @@ void link(Cell *ca, Cell *cb, bool is_bidi) {
 		ca->links = (Cell **)realloc(ca->links, ca->links_size * sizeof(Cell*));
 		if(!ca->links) die("Failed to increase links array size!");
 	}
-	ca->links[ca->links_count] = cb;
-	ca->links_count++;
+	if(!linked(ca,cb)) {
+		ca->links[ca->links_count] = cb;
+		ca->links_count++;
+	}
 	if(is_bidi) link(cb, ca, false);
-
 }
 
 bool unlink(Cell *ca, Cell *cb, bool is_bidi) {
@@ -123,15 +125,16 @@ Cell** neighbors(Cell *c) {
 void binary_tree_maze() {
 	int cell_count = Columns * Rows;
 	for(int i=0; i<cell_count; i++) {
+		Cell *c = Grid[i];
 		int j = 0;
 		Cell *neighbors[2];
 		for(int n=0;n<2;n++) neighbors[n] = NULL;
-		if(Grid[i]->north) neighbors[j++] = Grid[i]->north;
-		if(Grid[i]->east) neighbors[j++] = Grid[i]->east;
+		if(c->north) neighbors[j++] = c->north;
+		if(c->east) neighbors[j++] = c->east;
 		if(j==0) continue;
 		int rnd = rand() % j;
 		Cell *neighbor = neighbors[rnd];
-		link(Grid[i], neighbor, true);
+		link(c, neighbor, true);
 	}
 }
 
@@ -173,79 +176,74 @@ int size() {
 
 //
 
-char *to_string() {
-	if(DEBUG) 
-		printf("    char *toString()\n    Warning: Remember to free() return value.\n");
+size_t get_maze_string_size() {
+	size_t str_size = (Columns * 4 + 1) * (Rows * 2 + 1);
+	str_size += Rows * 2; // for newlines, 2 newlines for each row
+	str_size += 1;	      // for '\0'
+	return str_size;
+}
 
-	int str_size = (Columns * 4 + 1) * (Rows * 2 + 1);
-	str_size += Rows*2; // for newlines, 2 newlines for each row
-	str_size += 1; // for '\0'
+void to_string(char str_out[], size_t str_size) {
 
-	char *str = (char*)malloc(str_size);
-	str[str_size-1] = '\0';
+	str_out[str_size - 1] = '\0';
 
-	char *str_header = str;
+	char *str_header = str_out;
 
-	strcpy(str_header,"+");
+	strcpy(str_header, "+");
 	str_header++;
-	
-	for(int col=0; col<Columns; col++) {
-		strcpy(str_header,"---+");
+
+	for (int col = 0; col < Columns; col++) {
+		strcpy(str_header, "---+");
 		str_header += 4;
 	}
 
 	strcpy(str_header, "\n");
 	str_header++;
 
-	for(int row=0; row<Rows; row++) {
-
-		int line_length = Columns * 4+1;
-		char *top = (char*)malloc(line_length+1);   // +1 for '\0
-		char *bottom = (char*)malloc(line_length+1);   // +1 for '\0
+	for (int row = 0; row < Rows; row++) {
+		int line_length = Columns * 4 + 1;
+		char top[line_length + 1];    // +1 for '\0'
+		char bottom[line_length + 1]; // +1 for '\0'
 
 		top[line_length] = '\0';
-		bottom[line_length] = '\0'; 
+		bottom[line_length] = '\0';
 
-		char *topheader = top;
-		strcpy(topheader,"|");
-		topheader++;
-		
-		char *bottomheader = bottom;
-		strcpy(bottomheader,"+");
-		bottomheader++;
+		char *top_header = top;
+		strcpy(top_header, "|");
+		top_header++;
 
-		for(int col=0; col<Columns; col++) {
-			Cell *c = Grid[index_at(col,row)];
-			
-			if(linked(c,c->east)) {
-				strcpy(topheader,"    ");
+		char *bottom_header = bottom;
+		strcpy(bottom_header, "+");
+		bottom_header++;
+
+		for (int col = 0; col < Columns; col++) {
+			Cell *c = Grid[index_at(col, row)];
+
+			if (linked(c, c->east)) {
+				strcpy(top_header, "    ");
 			} else {
-				strcpy(topheader,"   |");
+				strcpy(top_header, "   |");
 			}
-			topheader+=4;
+			top_header += 4;
 
-			if(linked(c,c->south)) {
-				strcpy(bottomheader,"   +");
+			if (linked(c, c->south)) {
+				strcpy(bottom_header, "   +");
 			} else {
-				strcpy(bottomheader,"---+");
+				strcpy(bottom_header, "---+");
 			}
-			bottomheader+=4;
+			bottom_header += 4;
 		}
 
 		strcpy(str_header, top);
 		str_header += line_length;
-		strcpy(str_header,"\n");
-		str_header++;
-		
-		strcpy(str_header, bottom);
-		str_header += line_length;
-		strcpy(str_header,"\n");
+		strcpy(str_header, "\n");
 		str_header++;
 
-		free(top);
-		free(bottom);
+		strcpy(str_header, bottom);
+		str_header += line_length;
+		strcpy(str_header, "\n");
+		str_header++;
 	}
-	return str;
 }
 
 //
