@@ -35,6 +35,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	initialize();
+	
 	(*maze_algorithm)();
 	
 	size_t str_size = get_maze_string_size();
@@ -299,13 +300,17 @@ void to_string(char str_out[], size_t str_size) {
 void draw() {
 	int win_width = 320;
 	int win_height = 240;
+	
 	Tigr* screen = tigrWindow(win_width, win_height, "Maze", 0);
 
 	int cell_size = 10;
+	
 	int img_width = Columns * cell_size;
 	int img_height = Rows * cell_size;
+	
 	int offx = (win_width-img_width)/2;
 	int offy = (win_height-img_height)/2;
+
 	int cell_count = Columns * Rows;
 	
 	while (!tigrClosed(screen) && !tigrKeyDown(screen, TK_ESCAPE)) {
@@ -317,8 +322,8 @@ void draw() {
 			int y1 = (row(i) * cell_size) + offy;
 			int x2 = (column(i)+1) * cell_size + offx;
 			int y2 = (row(i)+1) * cell_size + offy;
-			if(!c->north) tigrLine(screen, x1,y1,x2,y1,black);
-			if(!c->west) tigrLine(screen, x1,y1,x1,y2,black);
+			if(!c->north) tigrLine(screen, x1,y1,x2,y1,black); // north edge
+			if(!c->west) tigrLine(screen, x1,y1,x1,y2,black); // western edge
 			if(!linked(c, c->east)) tigrLine(screen,x2,y1,x2,y2+1,black);
 			if(!linked(c, c->south)) tigrLine(screen,x1,y2,x2,y2,black);
 		}
