@@ -44,6 +44,7 @@ Cell *random_cell();
 
 size_t get_maze_string_size();
 void to_string(char str_out[], size_t str_size);
+void draw();
 
 void die(char *e);
 
