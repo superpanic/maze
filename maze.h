@@ -24,6 +24,7 @@ int Columns;
 void initialize();
 void init_cell(Cell *c, int columns, int row);
 void configure_cells();
+Cell *cell(int column, int row);
 void link(Cell *ca, Cell *cb, bool bi);
 bool unlink(Cell *ca, Cell *cb, bool bi);
 bool linked(Cell *ca, Cell *cb);
@@ -32,6 +33,7 @@ Cell **links(Cell *c);
 Cell **neighbors(Cell *c);
 
 void binary_tree_maze();
+void sidewinder_maze();
 
 void free_all();
 int index_at(int col, int row);

@@ -9,7 +9,7 @@ int main(int argc, char *argv[]) {
 	Columns = COLS;
 	Rows = ROWS;
 
-	if(argc == 3) {
+	if(argc >= 3) {
 		int co = atoi(argv[1]);
 		int ro = atoi(argv[2]);
 		if(co>1 && ro>1) {
@@ -19,9 +19,23 @@ int main(int argc, char *argv[]) {
 			die("Please provide parameters [columns]>1 and [rows]>1 ");
 		}
 	}
+	
+	void (*maze_algorithm)();
+	maze_algorithm = &binary_tree_maze;
+
+	if(argc > 3) {
+		char *argument = argv[3];
+		if(argument[0]=='-') {
+			switch(argument[1]) {
+				case 's':
+					maze_algorithm = &sidewinder_maze;
+					break;
+			}
+		}
+	}
 
 	initialize();
-	binary_tree_maze();
+	(*maze_algorithm)();
 	
 	size_t str_size = get_maze_string_size();
 	char maze_str[str_size];
@@ -64,6 +78,12 @@ void configure_cells() {
 		if(column(i)<Columns-1) c->east = Grid[i+1];
 		if(column(i)>0) c->west = Grid[i-1];
 	}
+}
+
+Cell *cell(int column, int row) {
+	if(column < 0 || column >= Columns) return NULL;
+	if(row < 0 || row >= Rows) return NULL;
+	return Grid[index_at(column, row)];
 }
 
 void link(Cell *ca, Cell *cb, bool is_bidi) {
@@ -135,6 +155,34 @@ void binary_tree_maze() {
 		int rnd = rand() % j;
 		Cell *neighbor = neighbors[rnd];
 		link(c, neighbor, true);
+	}
+}
+
+void sidewinder_maze() {
+	for(int ro=0; ro<Rows; ro++) {
+		Cell *corridor[Columns];
+		int index=0;
+		for(int co=0; co<Columns; co++) {
+			Cell *c = cell(co, ro);
+			corridor[index] = c;
+			if(!c) continue;
+			index++;
+			bool at_eastern_boundary = (c->east == NULL);
+			bool at_northern_boundary = (c->north == NULL);
+			int rnd = rand() % 2; // random number between 0 and 1:
+			bool should_close_out = at_eastern_boundary || (!at_northern_boundary && rnd==0);
+			if(should_close_out) {
+				int rnd_index = rand() % index;
+				Cell *member = corridor[rnd_index];
+				if(member->north) link(member, member->north, true);
+				while(index > 0) {
+					index--;
+					corridor[index] = NULL;
+				}
+			} else {
+				link(c, c->east, true);
+			}
+		}
 	}
 }
 
