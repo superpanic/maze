@@ -1,8 +1,8 @@
 #include "maze.h"
 
-#define COLS 2
-#define ROWS 3
-#define DEBUG true
+#define COLS 4
+#define ROWS 4
+#define MAZE_DEBUG false
 #define LINKS_SIZE_STEP 4
 
 int main(int argc, char *argv[]) {
@@ -16,36 +16,63 @@ int main(int argc, char *argv[]) {
 			Columns = co;
 			Rows = ro;
 		} else {
-			die("Please provide parameters [columns]>1 and [rows]>1 ");
+			die("Please provide parameters [columns]>1 and [rows]>1.");
 		}
+	} else {
+		die("Please provide parameters [columns] and [rows].");
 	}
 	
 	void (*maze_algorithm)();
 	maze_algorithm = &binary_tree_maze;
 
-	if(argc > 3) {
-		char *argument = argv[3];
-		if(argument[0]=='-') {
-			switch(argument[1]) {
-				case 's':
-					maze_algorithm = &sidewinder_maze;
-					break;
+	if(argc>3) {
+		for(int i=argc-3; i<argc; i++) {
+			char *argument = argv[i];
+				if(argument[0]=='-') {
+					switch(argument[1]) {
+						case 'b':
+							maze_algorithm = &binary_tree_maze;
+							break;
+
+						case 's':
+							maze_algorithm = &sidewinder_maze;
+							break;
+
+						case 'd':
+							Print_distances_flag = true;
+							break;
+
+						case 'w':
+							Draw_maze_flag = true;
+							break;
+
+						default:
+							die("   -s for sidewinder algorithm.\n   -d for distances\n");
+							break;
+				}
 			}
 		}
 	}
 
+	// create the maze
 	initialize();
-	
 	(*maze_algorithm)();
 	
+	// solve the maze
+	calculate_distances(Grid[0]);
+
+	// print to terminal
 	size_t str_size = get_maze_string_size();
 	char maze_str[str_size];
 	to_string(maze_str, str_size);
 	printf("%s", maze_str);
-	
-	draw();
 
+	// draw to window
+	if(Draw_maze_flag) draw();
+	
+	// free and exit
 	free_all();
+	
 	return 0;
 }
 
@@ -57,7 +84,7 @@ void initialize() {
 		Grid[i] = (Cell*) malloc(sizeof(Cell));
 		if(!Grid[i]) die("Failed to allocate memory to cell.");
 		init_cell(Grid[i], i % Columns, i / Columns);
-		if(DEBUG) printf("cell %d: column: %d, row: %d\n", i, Grid[i]->column, Grid[i]->row);
+		if(MAZE_DEBUG) printf("cell %d: column: %d, row: %d\n", i, Grid[i]->column, Grid[i]->row);
 	}
 	configure_cells();
 }
@@ -69,6 +96,8 @@ void init_cell(Cell *c, int column, int row) {
 	c->links = (Cell **)calloc(c->links_size, sizeof(Cell*));
 	if(!c->links) die("Failed to allocate memory to cell links array.");
 	c->links_count = 0;
+	c->distance = 0;
+	c->solved = false;
 }
 
 void configure_cells() {
@@ -80,6 +109,34 @@ void configure_cells() {
 		if(row(i)<Rows-1) c->south = Grid[i+Columns];
 		if(column(i)<Columns-1) c->east = Grid[i+1];
 		if(column(i)>0) c->west = Grid[i-1];
+	}
+}
+
+void calculate_distances(Cell *root) {
+	int max_cells = 32;
+	Cell *front[max_cells];
+	front[0] = root;
+	int front_count = 1; // counting root as #1
+	root->solved = true;
+
+	while(front_count>0){
+		Cell *new_front[max_cells];
+		int new_front_count = 0;
+
+		for(int i=0; i<front_count; i++) {
+			Cell *cell = front[i];
+			for(int j=0; j<cell->links_count; j++) {
+				Cell *linked = cell->links[j];
+				if(linked->solved) continue; // if distance more than 0 skip
+				linked->distance = cell->distance + 1;
+				linked->solved = true;
+				new_front[new_front_count] = linked;
+				new_front_count++;
+			}
+		}
+
+		front_count = new_front_count;
+		for(int k=0; k<new_front_count; k++) front[k] = new_front[k];
 	}
 }
 
@@ -131,7 +188,7 @@ bool find_link(Cell *ca, Cell *cb) {
 }
 
 Cell** neighbors(Cell *c) {
-	if(DEBUG) 
+	if(MAZE_DEBUG) 
 		printf("    Cell **neighbors(Cell *c)\n    Warning: Remember to free() return value.\n");
 
 	Cell **neighbors = (Cell**) calloc(4, sizeof(Cell*));
@@ -271,9 +328,11 @@ void to_string(char str_out[], size_t str_size) {
 			Cell *c = Grid[index_at(col, row)];
 
 			if (linked(c, c->east)) {
-				strcpy(top_header, "    ");
+				if(Print_distances_flag) sprintf(top_header, "%s%3d ", top_header, c->distance);
+				else strcpy(top_header, "    ");
 			} else {
-				strcpy(top_header, "   |");
+				if(Print_distances_flag) sprintf(top_header, "%s%3d|", top_header, c->distance);
+				else strcpy(top_header, "   |");
 			}
 			top_header += 4;
 
@@ -302,7 +361,7 @@ void draw() {
 	int win_height = 240;
 	
 	Tigr* screen = tigrWindow(win_width, win_height, "Maze", 0);
-
+	
 	int cell_size = 10;
 	
 	int img_width = Columns * cell_size;
@@ -314,21 +373,21 @@ void draw() {
 	int cell_count = Columns * Rows;
 	
 	while (!tigrClosed(screen) && !tigrKeyDown(screen, TK_ESCAPE)) {
-		tigrClear(screen, tigrRGB(0x80, 0x90, 0xa0));
-		TPixel black = {0,0,0,255};
+		tigrClear(screen, White);
 		for(int i=0; i<cell_count; i++) {
 			Cell *c = Grid[i];
 			int x1 = (column(i) * cell_size) + offx;
 			int y1 = (row(i) * cell_size) + offy;
 			int x2 = (column(i)+1) * cell_size + offx;
 			int y2 = (row(i)+1) * cell_size + offy;
-			if(!c->north) tigrLine(screen, x1,y1,x2,y1,black); // north edge
-			if(!c->west) tigrLine(screen, x1,y1,x1,y2,black); // western edge
-			if(!linked(c, c->east)) tigrLine(screen,x2,y1,x2,y2+1,black);
-			if(!linked(c, c->south)) tigrLine(screen,x1,y2,x2,y2,black);
+			if(!c->north) tigrLine(screen, x1,y1,x2,y1,Black); // north edge
+			if(!c->west) tigrLine(screen, x1,y1,x1,y2,Black); // western edge
+			if(!linked(c, c->east)) tigrLine(screen,x2,y1,x2,y2+1,Black);
+			if(!linked(c, c->south)) tigrLine(screen,x1,y2,x2,y2,Black);
 		}
 		tigrUpdate(screen);
 	}
+
 	tigrFree(screen);
 }
 
