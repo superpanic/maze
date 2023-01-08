@@ -113,13 +113,15 @@ void configure_cells() {
 }
 
 void calculate_distances(Cell *root) {
-	int max_cells = 32;
+	// TODO: will crash if exceeding max_cells
+	int max_cells = 64;
 	Cell *front[max_cells];
 	front[0] = root;
 	int front_count = 1; // counting root as #1
 	root->solved = true;
-
+	int max_count = 0;
 	while(front_count>0){
+		if(front_count>max_cells) die("Maze too large for calculating distances.");
 		Cell *new_front[max_cells];
 		int new_front_count = 0;
 
