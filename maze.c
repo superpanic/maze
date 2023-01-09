@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
 	(*maze_algorithm)();
 	
 	// solve the maze
-	calculate_distances(Grid[0]);
+	Cell *max_distance_cell = calculate_distances(Grid[0]);
 
 	// print to terminal
 	size_t str_size = get_maze_string_size();
@@ -69,6 +69,12 @@ int main(int argc, char *argv[]) {
 
 	// draw to window
 	if(Draw_maze_flag) draw();
+
+	if(Print_distances_flag) 
+		printf("Max distance cell at column %d row %d, at distance %d steps.\n", 
+			max_distance_cell->column+1, 
+			max_distance_cell->row+1, 
+			max_distance_cell->distance);
 	
 	// free and exit
 	free_all();
@@ -112,14 +118,13 @@ void configure_cells() {
 	}
 }
 
-void calculate_distances(Cell *root) {
-	// TODO: will crash if exceeding max_cells
+Cell *calculate_distances(Cell *root) {
 	int max_cells = 64;
 	Cell *front[max_cells];
 	front[0] = root;
 	int front_count = 1; // counting root as #1
 	root->solved = true;
-	int max_count = 0;
+	Cell *max_distance_cell = root;
 	while(front_count>0){
 		if(front_count>max_cells) die("Maze too large for calculating distances.");
 		Cell *new_front[max_cells];
@@ -131,6 +136,8 @@ void calculate_distances(Cell *root) {
 				Cell *linked = cell->links[j];
 				if(linked->solved) continue; // if distance more than 0 skip
 				linked->distance = cell->distance + 1;
+				if(linked->distance > max_distance_cell->distance) 
+					max_distance_cell = linked;
 				linked->solved = true;
 				new_front[new_front_count] = linked;
 				new_front_count++;
@@ -140,6 +147,7 @@ void calculate_distances(Cell *root) {
 		front_count = new_front_count;
 		for(int k=0; k<new_front_count; k++) front[k] = new_front[k];
 	}
+	return max_distance_cell;
 }
 
 Cell *cell(int column, int row) {

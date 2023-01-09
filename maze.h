@@ -35,7 +35,7 @@ bool Draw_maze_flag = false;
 void initialize();
 void init_cell(Cell *c, int columns, int row);
 void configure_cells();
-void calculate_distances(Cell *root);
+Cell *calculate_distances(Cell *root);
 Cell *cell(int column, int row);
 void link(Cell *ca, Cell *cb, bool bi);
 bool unlink(Cell *ca, Cell *cb, bool bi);
