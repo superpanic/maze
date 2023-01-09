@@ -4,10 +4,14 @@
 #define ROWS 4
 #define MAZE_DEBUG false
 #define LINKS_SIZE_STEP 4
+#define MAZE_TIGR
 
 int main(int argc, char *argv[]) {
 	Columns = COLS;
 	Rows = ROWS;
+
+	void (*maze_algorithm)();
+	maze_algorithm = &binary_tree_maze;
 
 	if(argc >= 3) {
 		int co = atoi(argv[1]);
@@ -18,37 +22,35 @@ int main(int argc, char *argv[]) {
 		} else {
 			die("Please provide parameters [columns]>1 and [rows]>1.");
 		}
-	} else {
-		die("Please provide parameters [columns] and [rows].");
 	}
-	
-	void (*maze_algorithm)();
-	maze_algorithm = &binary_tree_maze;
 
 	if(argc>3) {
 		for(int i=argc-3; i<argc; i++) {
 			char *argument = argv[i];
-				if(argument[0]=='-') {
-					switch(argument[1]) {
-						case 'b':
-							maze_algorithm = &binary_tree_maze;
-							break;
+			if(argument[0]=='-') {
+				switch(argument[1]) {
+					case 'b':
+						maze_algorithm = &binary_tree_maze;
+						break;
 
-						case 's':
-							maze_algorithm = &sidewinder_maze;
-							break;
+					case 's':
+						maze_algorithm = &sidewinder_maze;
+						break;
 
-						case 'd':
-							Print_distances_flag = true;
-							break;
+					case 'd':
+						Print_distances_flag = true;
+						break;
 
-						case 'w':
-							Draw_maze_flag = true;
-							break;
+					case 'w':
+						Draw_maze_flag = true;
+						break;
 
-						default:
-							die("   -s for sidewinder algorithm.\n   -d for distances\n");
-							break;
+					case 'p':
+						Print_path_flag = true;
+
+					default:
+						die("   -s for sidewinder algorithm.\n   -d for distances\n");
+						break;
 				}
 			}
 		}
@@ -61,14 +63,24 @@ int main(int argc, char *argv[]) {
 	// solve the maze
 	Cell *max_distance_cell = calculate_distances(Grid[0]);
 
+	// get closest path from south east corner
+	Cell **breadcrumbs = path_to(cell(Columns-1,Rows-1),64);
+	// do something with the path
+	for(int i=0; i<64; i++) {
+		if(breadcrumbs[i]) printf("%d ", breadcrumbs[i]->distance);
+		else break;
+	}
+	printf("\n");
+	
+
 	// print to terminal
 	size_t str_size = get_maze_string_size();
 	char maze_str[str_size];
-	to_string(maze_str, str_size);
+	to_string(maze_str, str_size, Print_distances_flag);
 	printf("%s", maze_str);
 
 	// draw to window
-	if(Draw_maze_flag) draw();
+	if(Draw_maze_flag) draw(Grid, breadcrumbs);
 
 	if(Print_distances_flag) 
 		printf("Max distance cell at column %d row %d, at distance %d steps.\n", 
@@ -77,6 +89,7 @@ int main(int argc, char *argv[]) {
 			max_distance_cell->distance);
 	
 	// free and exit
+	free(breadcrumbs);
 	free_all();
 	
 	return 0;
@@ -148,6 +161,28 @@ Cell *calculate_distances(Cell *root) {
 		for(int k=0; k<new_front_count; k++) front[k] = new_front[k];
 	}
 	return max_distance_cell;
+}
+
+// needs to free() return array
+Cell **path_to(Cell *goal, int max_path) {
+	if(!goal->solved) die("Trying to find closest path before solving maze.");
+	Cell *current = goal;
+	Cell **breadcrumbs = (Cell**)malloc(max_path * sizeof(Cell*));
+	int breadcrumbs_counter = 0;
+	breadcrumbs[breadcrumbs_counter++] = current;
+	while(current->distance > 0 && breadcrumbs_counter < max_path) {
+		int lowest = current->distance;
+		Cell *candidate;
+		for(int i=0; i<current->links_count; i++) {
+			if(current->links[i]->distance < lowest) {
+				lowest = current->links[i]->distance;
+				candidate = current->links[i];
+			}
+		}
+		breadcrumbs[breadcrumbs_counter++] = candidate;
+		current = candidate;
+	}
+	return breadcrumbs;
 }
 
 Cell *cell(int column, int row) {
@@ -301,7 +336,7 @@ size_t get_maze_string_size() {
 	return str_size;
 }
 
-void to_string(char str_out[], size_t str_size) {
+void to_string(char str_out[], size_t str_size, bool print_distances) {
 
 	str_out[str_size - 1] = '\0';
 
@@ -338,10 +373,10 @@ void to_string(char str_out[], size_t str_size) {
 			Cell *c = Grid[index_at(col, row)];
 
 			if (linked(c, c->east)) {
-				if(Print_distances_flag) sprintf(top_header, "%s%3d ", top_header, c->distance);
+				if(print_distances) sprintf(top_header, "%s%3d ", top_header, c->distance);
 				else strcpy(top_header, "    ");
 			} else {
-				if(Print_distances_flag) sprintf(top_header, "%s%3d|", top_header, c->distance);
+				if(print_distances) sprintf(top_header, "%s%3d|", top_header, c->distance);
 				else strcpy(top_header, "   |");
 			}
 			top_header += 4;
@@ -366,7 +401,8 @@ void to_string(char str_out[], size_t str_size) {
 	}
 }
 
-void draw() {
+void draw(Cell **grid, Cell **breadcrumbs) {
+	#ifdef MAZE_TIGR
 	int win_width = 320;
 	int win_height = 240;
 	
@@ -385,7 +421,7 @@ void draw() {
 	while (!tigrClosed(screen) && !tigrKeyDown(screen, TK_ESCAPE)) {
 		tigrClear(screen, White);
 		for(int i=0; i<cell_count; i++) {
-			Cell *c = Grid[i];
+			Cell *c = grid[i];
 			int x1 = (column(i) * cell_size) + offx;
 			int y1 = (row(i) * cell_size) + offy;
 			int x2 = (column(i)+1) * cell_size + offx;
@@ -395,10 +431,22 @@ void draw() {
 			if(!linked(c, c->east)) tigrLine(screen,x2,y1,x2,y2+1,Black);
 			if(!linked(c, c->south)) tigrLine(screen,x1,y2,x2,y2,Black);
 		}
+		int i=0;
+		int half_cell_size = cell_size/2;
+		while(breadcrumbs[i+1] && breadcrumbs[i]->distance>0) {
+			Cell *c = breadcrumbs[i];
+			int x1 = (breadcrumbs[i]->column * cell_size) + half_cell_size + offx;
+			int y1 = (breadcrumbs[i]->row * cell_size) + half_cell_size + offy;
+			int x2 = (breadcrumbs[i+1]->column * cell_size) + half_cell_size + offx;
+			int y2 = (breadcrumbs[i+1]->row * cell_size) + half_cell_size + offy;
+			tigrLine(screen,x1,y1,x2,y2,Red);
+			i++;
+		}
 		tigrUpdate(screen);
 	}
 
 	tigrFree(screen);
+	#endif
 }
 
 //
