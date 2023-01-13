@@ -22,6 +22,8 @@ int main(int argc, char *argv[]) {
 		} else {
 			die("Please provide parameters [columns]>1 and [rows]>1.");
 		}
+	} else {
+		die("./maze [columns] [rows]\n");
 	}
 
 	if(argc>3) {
@@ -64,14 +66,7 @@ int main(int argc, char *argv[]) {
 	Cell *max_distance_cell = calculate_distances(Grid[0]);
 
 	// get closest path from south east corner
-	Cell **breadcrumbs = path_to(cell(Columns-1,Rows-1),64);
-	// do something with the path
-	for(int i=0; i<64; i++) {
-		if(breadcrumbs[i]) printf("%d ", breadcrumbs[i]->distance);
-		else break;
-	}
-	printf("\n");
-	
+	Cell **breadcrumbs = path_to(cell(Columns-1,Rows-1), max_distance_cell->distance);
 
 	// print to terminal
 	size_t str_size = get_maze_string_size();
@@ -80,7 +75,7 @@ int main(int argc, char *argv[]) {
 	printf("%s", maze_str);
 
 	// draw to window
-	if(Draw_maze_flag) draw(Grid, breadcrumbs);
+	if(Draw_maze_flag) draw(Grid, breadcrumbs, max_distance_cell->distance);
 
 	if(Print_distances_flag) 
 		printf("Max distance cell at column %d row %d, at distance %d steps.\n", 
@@ -117,6 +112,7 @@ void init_cell(Cell *c, int column, int row) {
 	c->links_count = 0;
 	c->distance = 0;
 	c->solved = false;
+	c->path = false;
 }
 
 void configure_cells() {
@@ -161,28 +157,6 @@ Cell *calculate_distances(Cell *root) {
 		for(int k=0; k<new_front_count; k++) front[k] = new_front[k];
 	}
 	return max_distance_cell;
-}
-
-// needs to free() return array
-Cell **path_to(Cell *goal, int max_path) {
-	if(!goal->solved) die("Trying to find closest path before solving maze.");
-	Cell *current = goal;
-	Cell **breadcrumbs = (Cell**)malloc(max_path * sizeof(Cell*));
-	int breadcrumbs_counter = 0;
-	breadcrumbs[breadcrumbs_counter++] = current;
-	while(current->distance > 0 && breadcrumbs_counter < max_path) {
-		int lowest = current->distance;
-		Cell *candidate;
-		for(int i=0; i<current->links_count; i++) {
-			if(current->links[i]->distance < lowest) {
-				lowest = current->links[i]->distance;
-				candidate = current->links[i];
-			}
-		}
-		breadcrumbs[breadcrumbs_counter++] = candidate;
-		current = candidate;
-	}
-	return breadcrumbs;
 }
 
 Cell *cell(int column, int row) {
@@ -291,20 +265,32 @@ void sidewinder_maze() {
 	}
 }
 
-//
-
-void free_all() {
-	if(!Grid) return;
-	int cell_count = Columns * Rows;
-	for(int i=0; i<cell_count; i++) {
-		if(Grid[i]->links) 
-			free(Grid[i]->links);
-		if(Grid[i]) 
-			free(Grid[i]);
+// needs to free() return array
+Cell **path_to(Cell *goal, int max_path) {
+	if(!goal->solved) die("Trying to find closest path before solving maze.");
+	Cell *current = goal;
+	Cell **breadcrumbs = (Cell**)malloc((max_path+1) * sizeof(Cell*));
+	int breadcrumbs_counter = 0;
+	breadcrumbs[breadcrumbs_counter++] = current;
+	current->path = true;
+	while(current->distance > 0 && breadcrumbs_counter < max_path) {
+		int lowest = current->distance;
+		Cell *candidate;
+		for(int i=0; i<current->links_count; i++) {
+			if(current->links[i]->distance < lowest) {
+				lowest = current->links[i]->distance;
+				candidate = current->links[i];
+			}
+		}
+		breadcrumbs[breadcrumbs_counter++] = candidate;
+		candidate->path = true;
+		current = candidate;
 	}
-	free(Grid);
+	return breadcrumbs;
 }
 
+
+//
 
 int index_at(int col, int row) {
 	return row * Columns + col;
@@ -373,11 +359,19 @@ void to_string(char str_out[], size_t str_size, bool print_distances) {
 			Cell *c = Grid[index_at(col, row)];
 
 			if (linked(c, c->east)) {
-				if(print_distances) sprintf(top_header, "%s%3d ", top_header, c->distance);
-				else strcpy(top_header, "    ");
+				if(print_distances) {
+					if(c->path) sprintf(top_header, "%s%2d* ", top_header, c->distance);
+					else sprintf(top_header, "%s%2d  ", top_header, c->distance);
+				} else {
+					strcpy(top_header, "    ");
+				}
 			} else {
-				if(print_distances) sprintf(top_header, "%s%3d|", top_header, c->distance);
-				else strcpy(top_header, "   |");
+				if(print_distances) {
+					if(c->path) sprintf(top_header, "%s%2d*|", top_header, c->distance);
+					else sprintf(top_header, "%s%2d |", top_header, c->distance);
+				} else {
+					strcpy(top_header, "   |");
+				}
 			}
 			top_header += 4;
 
@@ -401,14 +395,18 @@ void to_string(char str_out[], size_t str_size, bool print_distances) {
 	}
 }
 
-void draw(Cell **grid, Cell **breadcrumbs) {
+void draw(Cell **grid, Cell **breadcrumbs, int max_distance) {
+
 	#ifdef MAZE_TIGR
+	// ##############
+
 	int win_width = 320;
 	int win_height = 240;
 	
 	Tigr* screen = tigrWindow(win_width, win_height, "Maze", 0);
 	
-	int cell_size = 10;
+	int cell_size = 16;
+	int half_cell_size = cell_size/2;
 	
 	int img_width = Columns * cell_size;
 	int img_height = Rows * cell_size;
@@ -420,19 +418,22 @@ void draw(Cell **grid, Cell **breadcrumbs) {
 	
 	while (!tigrClosed(screen) && !tigrKeyDown(screen, TK_ESCAPE)) {
 		tigrClear(screen, White);
+		// draw walls
 		for(int i=0; i<cell_count; i++) {
 			Cell *c = grid[i];
 			int x1 = (column(i) * cell_size) + offx;
 			int y1 = (row(i) * cell_size) + offy;
 			int x2 = (column(i)+1) * cell_size + offx;
 			int y2 = (row(i)+1) * cell_size + offy;
+			tigrFillRect(screen, x1, y1, cell_size+2, cell_size+2, color_grid_distance(c, max_distance));
 			if(!c->north) tigrLine(screen, x1,y1,x2,y1,Black); // north edge
 			if(!c->west) tigrLine(screen, x1,y1,x1,y2,Black); // western edge
 			if(!linked(c, c->east)) tigrLine(screen,x2,y1,x2,y2+1,Black);
 			if(!linked(c, c->south)) tigrLine(screen,x1,y2,x2,y2,Black);
-		}
+		}		
+		// draw solution line
+		
 		int i=0;
-		int half_cell_size = cell_size/2;
 		while(breadcrumbs[i+1] && breadcrumbs[i]->distance>0) {
 			Cell *c = breadcrumbs[i];
 			int x1 = (breadcrumbs[i]->column * cell_size) + half_cell_size + offx;
@@ -440,16 +441,47 @@ void draw(Cell **grid, Cell **breadcrumbs) {
 			int x2 = (breadcrumbs[i+1]->column * cell_size) + half_cell_size + offx;
 			int y2 = (breadcrumbs[i+1]->row * cell_size) + half_cell_size + offy;
 			tigrLine(screen,x1,y1,x2,y2,Red);
+			char str[4];
+			sprintf(str, "%d", breadcrumbs[i]->distance);
+			int text_width_half = tigrTextWidth(tfont, str)/2;
+			int text_height_half = tigrTextHeight(tfont, str)/2;
+			tigrPrint(screen, tfont, x1-text_width_half, y1-text_height_half, tigrRGB(0xff, 0xff, 0xff), str);
 			i++;
 		}
 		tigrUpdate(screen);
 	}
 
 	tigrFree(screen);
+
+	// ###########
 	#endif
+
+}
+
+TPixel color_grid_distance(Cell *cell, int max) {
+	if(!cell->solved) return White;
+	float dist_f = (float)cell->distance;
+	float max_f = (float)max;
+	float intensity_f = (max_f - dist_f)/max_f;
+	int dark = (int)(255.0 * intensity_f);
+	int bright = 128 + (int)(127.0 * intensity_f);
+	TPixel col = {dark, bright, dark, 255};
+	return col;
 }
 
 //
+
+void free_all() {
+	if(!Grid) return;
+	int cell_count = Columns * Rows;
+	for(int i=0; i<cell_count; i++) {
+		if(Grid[i]->links) 
+			free(Grid[i]->links);
+		if(Grid[i]) 
+			free(Grid[i]);
+	}
+	free(Grid);
+}
 
 void die(char *e) {
 	printf("%s %s", e, "Exiting program.\n");

@@ -5,6 +5,9 @@
 #include <string.h>
 #include "tigr/tigr.h"
 
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
 // A single cell in the maze, with links and neighbours.
 typedef struct Cell {
 	uint8_t row;
@@ -18,6 +21,7 @@ typedef struct Cell {
 	int links_count;
 	bool solved;
 	int distance;
+	bool path;
 } Cell;
 
 Cell **Grid;
@@ -28,6 +32,10 @@ int Columns;
 const TPixel White = {255,255,255,255};
 const TPixel Black = {0,0,0,255};
 const TPixel Red = {255,0,0,255};
+const TPixel Green = {0,255,0,255};
+const TPixel Blue = {0,0,255,255};
+const TPixel Yellow = {255,255,0,255};
+const TPixel Gray = {220,220,220,255};
 
 bool Print_distances_flag = false;
 bool Draw_maze_flag = false;
@@ -58,7 +66,9 @@ Cell *random_cell();
 
 size_t get_maze_string_size();
 void to_string(char str_out[], size_t str_size, bool print_distances);
-void draw(Cell **grid, Cell **breadcrumbs);
+void draw(Cell **grid, Cell **breadcrumbs, int max_distance);
+
+TPixel color_grid_distance(Cell *cell, int max);
 
 void die(char *e);
 
