@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <errno.h>
 #include "tigr/tigr.h"
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -52,10 +53,11 @@ bool unlink(Cell *ca, Cell *cb, bool bi);
 bool linked(Cell *ca, Cell *cb);
 bool find_link(Cell *ca, Cell *cb);
 Cell **links(Cell *c);
-Cell **neighbors(Cell *c);
+Cell **neighbors(Cell *c, int *counter);
 
 void binary_tree_maze();
 void sidewinder_maze();
+void aldous_broder_maze();
 
 void free_all();
 int index_at(int col, int row);
@@ -70,5 +72,5 @@ void draw(Cell **grid, Cell **breadcrumbs, int max_distance);
 
 TPixel color_grid_distance(Cell *cell, int max);
 
-void die(char *e);
+void die(char *e, int n);
 

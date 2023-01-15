@@ -20,11 +20,14 @@ int main(int argc, char *argv[]) {
 			Columns = co;
 			Rows = ro;
 		} else {
-			die("Please provide parameters [columns]>1 and [rows]>1.");
+			die("Please provide parameters [columns]>1 and [rows]>1.", errno);
 		}
 	} else {
-		die("./maze [columns] [rows]\n");
+		die("./maze [columns] [rows]\n", errno);
 	}
+
+	Print_distances_flag = false;
+	Print_path_flag = false;
 
 	if(argc>3) {
 		for(int i=argc-3; i<argc; i++) {
@@ -39,19 +42,25 @@ int main(int argc, char *argv[]) {
 						maze_algorithm = &sidewinder_maze;
 						break;
 
+					case 'a':
+						maze_algorithm = &aldous_broder_maze;
+						break;
+
 					case 'd':
 						Print_distances_flag = true;
 						break;
 
+#ifdef MAZE_TIGR
 					case 'w':
 						Draw_maze_flag = true;
 						break;
+#endif
 
 					case 'p':
 						Print_path_flag = true;
 
 					default:
-						die("   -s for sidewinder algorithm.\n   -d for distances\n");
+						die("   -s for sidewinder algorithm.\n   -d for distances\n", errno);
 						break;
 				}
 			}
@@ -66,7 +75,7 @@ int main(int argc, char *argv[]) {
 	Cell *max_distance_cell = calculate_distances(Grid[0]);
 
 	// get closest path from south east corner
-	Cell **breadcrumbs = path_to(cell(Columns-1,Rows-1), max_distance_cell->distance);
+	Cell **breadcrumbs = path_to(max_distance_cell, max_distance_cell->distance);
 
 	// print to terminal
 	size_t str_size = get_maze_string_size();
@@ -87,16 +96,16 @@ int main(int argc, char *argv[]) {
 	free(breadcrumbs);
 	free_all();
 	
-	return 0;
+	exit(EXIT_SUCCESS);
 }
 
 void initialize() {
 	int cell_count = Columns * Rows;
 	Grid = (Cell**)malloc(cell_count * sizeof(Cell*));
-	if(!Grid) die("Failed to allocate memory for grid cells!");
+	if(!Grid) die("Failed to allocate memory for grid cells!", errno);
 	for(int i=0; i<cell_count; i++) {
 		Grid[i] = (Cell*) malloc(sizeof(Cell));
-		if(!Grid[i]) die("Failed to allocate memory to cell.");
+		if(!Grid[i]) die("Failed to allocate memory to cell.", errno);
 		init_cell(Grid[i], i % Columns, i / Columns);
 		if(MAZE_DEBUG) printf("cell %d: column: %d, row: %d\n", i, Grid[i]->column, Grid[i]->row);
 	}
@@ -108,7 +117,7 @@ void init_cell(Cell *c, int column, int row) {
 	c->row = row;
 	c->links_size = LINKS_SIZE_STEP;
 	c->links = (Cell **)calloc(c->links_size, sizeof(Cell*));
-	if(!c->links) die("Failed to allocate memory to cell links array.");
+	if(!c->links) die("Failed to allocate memory to cell links array.", errno);
 	c->links_count = 0;
 	c->distance = 0;
 	c->solved = false;
@@ -116,7 +125,7 @@ void init_cell(Cell *c, int column, int row) {
 }
 
 void configure_cells() {
-	if(!Grid) die("Grid not initilized.");
+	if(!Grid) die("Grid not initilized.", errno);
 	int cell_count = Columns * Rows;
 	for(int i=0; i<cell_count; i++) {
 		Cell *c = Grid[i];
@@ -135,7 +144,7 @@ Cell *calculate_distances(Cell *root) {
 	root->solved = true;
 	Cell *max_distance_cell = root;
 	while(front_count>0){
-		if(front_count>max_cells) die("Maze too large for calculating distances.");
+		if(front_count>max_cells) die("Maze too large for calculating distances.", errno);
 		Cell *new_front[max_cells];
 		int new_front_count = 0;
 
@@ -169,7 +178,7 @@ void link(Cell *ca, Cell *cb, bool is_bidi) {
 	if(ca->links_count >= ca->links_size) {
 		ca->links_size = ca->links_size + LINKS_SIZE_STEP;
 		ca->links = (Cell **)realloc(ca->links, ca->links_size * sizeof(Cell*));
-		if(!ca->links) die("Failed to increase links array size!");
+		if(!ca->links) die("Failed to increase links array size!", errno);
 	}
 	if(!linked(ca,cb)) {
 		ca->links[ca->links_count] = cb;
@@ -206,7 +215,7 @@ bool find_link(Cell *ca, Cell *cb) {
 	return false;
 }
 
-Cell** neighbors(Cell *c) {
+Cell** neighbors(Cell *c, int *counter) {
 	if(MAZE_DEBUG) 
 		printf("    Cell **neighbors(Cell *c)\n    Warning: Remember to free() return value.\n");
 
@@ -216,6 +225,7 @@ Cell** neighbors(Cell *c) {
 	if(c->south) neighbors[i++] = c->south;
 	if(c->east) neighbors[i++] = c->east;
 	if(c->west) neighbors[i++] = c->west;
+	*counter = i;
 	return neighbors;
 }
 
@@ -265,9 +275,26 @@ void sidewinder_maze() {
 	}
 }
 
+void aldous_broder_maze() {
+	Cell *c = random_cell();
+	int cells_count = Columns * Rows;
+	int unvisited = cells_count -1;
+	while(unvisited > 0) {
+		int counter;
+		Cell **neighbor_array = neighbors(c, &counter); 
+		int rnd = random() % counter;
+		Cell *n = neighbor_array[rnd];
+		if(n->links_count==0) {
+			link(c,n, true);
+			unvisited -= 1;
+		}
+		c = n;
+	}
+}
+
 // needs to free() return array
 Cell **path_to(Cell *goal, int max_path) {
-	if(!goal->solved) die("Trying to find closest path before solving maze.");
+	if(!goal->solved) die("Trying to find closest path before solving maze.", errno);
 	Cell *current = goal;
 	Cell **breadcrumbs = (Cell**)malloc((max_path+1) * sizeof(Cell*));
 	int breadcrumbs_counter = 0;
@@ -483,8 +510,8 @@ void free_all() {
 	free(Grid);
 }
 
-void die(char *e) {
-	printf("%s %s", e, "Exiting program.\n");
+void die(char *e, int n) {
+	printf("%s %s %s", e, "Exiting program.\n", strerror(n));
 	free_all();
-	exit(1);
+	exit(EXIT_FAILURE);
 }
