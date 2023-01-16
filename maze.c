@@ -77,6 +77,11 @@ int main(int argc, char *argv[]) {
 	// get closest path from south east corner
 	Cell **breadcrumbs = path_to(max_distance_cell, max_distance_cell->distance);
 
+	for(int i=max_distance_cell->distance; i>=0; i--) {
+		printf("%d ", breadcrumbs[i]->distance);
+	}
+	printf("\n");
+
 	// print to terminal
 	size_t str_size = get_maze_string_size();
 	char maze_str[str_size];
@@ -300,7 +305,7 @@ Cell **path_to(Cell *goal, int max_path) {
 	int breadcrumbs_counter = 0;
 	breadcrumbs[breadcrumbs_counter++] = current;
 	current->path = true;
-	while(current->distance > 0 && breadcrumbs_counter < max_path) {
+	while(current->distance >= 0 && breadcrumbs_counter <= max_path) {
 		int lowest = current->distance;
 		Cell *candidate;
 		for(int i=0; i<current->links_count; i++) {
@@ -459,7 +464,6 @@ void draw(Cell **grid, Cell **breadcrumbs, int max_distance) {
 			if(!linked(c, c->south)) tigrLine(screen,x1,y2,x2,y2,Black);
 		}		
 		// draw solution line
-		
 		int i=0;
 		while(breadcrumbs[i+1] && breadcrumbs[i]->distance>0) {
 			Cell *c = breadcrumbs[i];
@@ -468,12 +472,17 @@ void draw(Cell **grid, Cell **breadcrumbs, int max_distance) {
 			int x2 = (breadcrumbs[i+1]->column * cell_size) + half_cell_size + offx;
 			int y2 = (breadcrumbs[i+1]->row * cell_size) + half_cell_size + offy;
 			tigrLine(screen,x1,y1,x2,y2,Red);
+			i++;
+		}
+		// print breadcrumb distances
+		for(i=breadcrumbs[0]->distance; i>=0; i--) {
+			int x1 = (breadcrumbs[i]->column * cell_size) + half_cell_size + offx;
+			int y1 = (breadcrumbs[i]->row * cell_size) + half_cell_size + offy;
 			char str[4];
 			sprintf(str, "%d", breadcrumbs[i]->distance);
 			int text_width_half = tigrTextWidth(tfont, str)/2;
 			int text_height_half = tigrTextHeight(tfont, str)/2;
 			tigrPrint(screen, tfont, x1-text_width_half, y1-text_height_half, tigrRGB(0xff, 0xff, 0xff), str);
-			i++;
 		}
 		tigrUpdate(screen);
 	}

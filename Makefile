@@ -13,5 +13,8 @@ endif
 maze : maze.c tigr/tigr.c
 	gcc $^ -Os -o $@ $(CFLAGS) $(LDFLAGS)
 
+mazed : maze.c tigr/tigr.c
+	gcc $^ -O0 -g -o $@ $(CFLAGS) $(LDFLAGS)
+
 clean :
-	rm -f maze
+	rm -f maze mazed
