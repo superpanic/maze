@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 #include "tigr/tigr.h"
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -41,6 +42,7 @@ const TPixel Gray = {220,220,220,255};
 bool Print_distances_flag = false;
 bool Draw_maze_flag = false;
 bool Print_path_flag = false;
+bool Performance_test = false;
 
 void initialize();
 void init_cell(Cell *c, int columns, int row);
@@ -65,6 +67,8 @@ int row(int index);
 int column(int index);
 int size();
 Cell *random_cell();
+void clear_maze_links();
+clock_t performance_test(void (*alg)(), int runs);
 
 size_t get_maze_string_size();
 void to_string(char str_out[], size_t str_size, bool print_distances);
@@ -73,4 +77,3 @@ void draw(Cell **grid, Cell **breadcrumbs, int max_distance);
 TPixel color_grid_distance(Cell *cell, int max);
 
 void die(char *e, int n);
-

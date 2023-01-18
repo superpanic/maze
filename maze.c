@@ -28,6 +28,7 @@ int main(int argc, char *argv[]) {
 
 	Print_distances_flag = false;
 	Print_path_flag = false;
+	Performance_test = false;
 
 	if(argc>3) {
 		for(int i=argc-3; i<argc; i++) {
@@ -58,6 +59,11 @@ int main(int argc, char *argv[]) {
 
 					case 'p':
 						Print_path_flag = true;
+						break;
+
+					case 't':
+						Performance_test = true;
+						break;
 
 					default:
 						die("   -s for sidewinder algorithm.\n   -d for distances\n", errno);
@@ -95,12 +101,20 @@ int main(int argc, char *argv[]) {
 		printf("Max distance cell at column %d row %d, at distance %d steps.\n", 
 			max_distance_cell->column+1, 
 			max_distance_cell->row+1, 
-			max_distance_cell->distance);
+			max_distance_cell->distance);	
 	
+	if(Performance_test) {
+		int test_runs = 1000;
+		unsigned long binary_time = (unsigned long)performance_test(&binary_tree_maze, test_runs);
+		unsigned long sidewinder_time = (unsigned long)performance_test(&sidewinder_maze, test_runs);
+		unsigned long aldous_broder_time = (unsigned long)performance_test(&aldous_broder_maze, test_runs);
+		printf("    testing algorithms %d runs, size %d x %d\n    binary = %lu ms\n    sidewinder = %lu ms\n    aldous broder = %lu ms\n", test_runs, Columns, Rows, binary_time, sidewinder_time, aldous_broder_time);
+	}
+
+end:
 	// free and exit
 	free(breadcrumbs);
-	free_all();
-	
+	free_all();	
 	exit(EXIT_SUCCESS);
 }
 
@@ -246,6 +260,7 @@ void binary_tree_maze() {
 		if(c->north) neighbors[j++] = c->north;
 		if(c->east) neighbors[j++] = c->east;
 		if(j==0) continue;
+		//srand(time(NULL));
 		int rnd = rand() % j;
 		Cell *neighbor = neighbors[rnd];
 		link(c, neighbor, true);
@@ -277,6 +292,27 @@ void sidewinder_maze() {
 				link(c, c->east, true);
 			}
 		}
+	}
+}
+
+clock_t performance_test(void (*alg)(), int runs) {
+	clock_t t = clock();
+	for(int i=0; i<runs; i++) {
+		(*alg)();
+		clear_maze_links();
+	}
+	clock_t time_passed = clock() - t;
+	return time_passed;
+}
+
+void clear_maze_links() {
+	int s = size();
+	for(int i=0; i<s; i++) {
+		Cell *c = Grid[i];
+		for(int l=0;l<c->links_count;l++) {
+			c->links[l] = NULL;
+		}
+		c->links_count = 0;
 	}
 }
 
@@ -341,6 +377,7 @@ Cell *random_cell() {
 	return Grid[rnd];
 }
 
+// return maze size
 int size() {
 	return Rows * Columns;
 }
