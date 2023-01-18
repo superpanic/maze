@@ -63,10 +63,10 @@ int main(int argc, char *argv[]) {
 
 					case 't':
 						Performance_test = true;
-						break;
+						break;						
 
 					default:
-						die("   -s for sidewinder algorithm.\n   -d for distances\n", errno);
+						die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use aldous broder algorithm\n -d print distances\n -w draw fancy maze in window using tigr\n -p print path\n -t performance test\n", errno);
 						break;
 				}
 			}
