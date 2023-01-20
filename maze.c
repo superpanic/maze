@@ -28,7 +28,8 @@ int main(int argc, char *argv[]) {
 
 	Print_distances_flag = false;
 	Print_path_flag = false;
-	Performance_test = false;
+	Performance_test_flag = false;
+	Save_to_file_flag = false;
 
 	if(argc>3) {
 		for(int i=argc-3; i<argc; i++) {
@@ -62,11 +63,16 @@ int main(int argc, char *argv[]) {
 						break;
 
 					case 't':
-						Performance_test = true;
-						break;						
+						Performance_test_flag = true;
+						break;
+
+					case 'o':
+						Draw_maze_flag = true;
+						Save_to_file_flag = true;
+						break;
 
 					default:
-						die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use aldous broder algorithm\n -d print distances\n -w draw fancy maze in window using tigr\n -p print path\n -t performance test\n", errno);
+						die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use aldous broder algorithm\n -d print distances\n -w draw fancy maze in window using tigr\n -p print path\n -t performance test\n -o save maze image file\n", errno);
 						break;
 				}
 			}
@@ -101,15 +107,16 @@ int main(int argc, char *argv[]) {
 		printf("Max distance cell at column %d row %d, at distance %d steps.\n", 
 			max_distance_cell->column+1, 
 			max_distance_cell->row+1, 
-			max_distance_cell->distance);	
+			max_distance_cell->distance);
 	
-	if(Performance_test) {
+	if(Performance_test_flag) {
 		int test_runs = 1000;
 		unsigned long binary_time = (unsigned long)performance_test(&binary_tree_maze, test_runs);
 		unsigned long sidewinder_time = (unsigned long)performance_test(&sidewinder_maze, test_runs);
 		unsigned long aldous_broder_time = (unsigned long)performance_test(&aldous_broder_maze, test_runs);
 		printf("    testing algorithms %d runs, size %d x %d\n    binary = %lu ms\n    sidewinder = %lu ms\n    aldous broder = %lu ms\n", test_runs, Columns, Rows, binary_time, sidewinder_time, aldous_broder_time);
 	}
+	
 
 end:
 	// free and exit
@@ -484,7 +491,7 @@ void draw(Cell **grid, Cell **breadcrumbs, int max_distance) {
 	int offy = (win_height-img_height)/2;
 
 	int cell_count = Columns * Rows;
-	
+	bool is_not_saved = true;
 	while (!tigrClosed(screen) && !tigrKeyDown(screen, TK_ESCAPE)) {
 		tigrClear(screen, White);
 		// draw walls
@@ -522,6 +529,12 @@ void draw(Cell **grid, Cell **breadcrumbs, int max_distance) {
 			tigrPrint(screen, tfont, x1-text_width_half, y1-text_height_half, tigrRGB(0xff, 0xff, 0xff), str);
 		}
 		tigrUpdate(screen);
+		if(Save_to_file_flag && is_not_saved) {
+			printf("Saving file ...\n");
+			int save_check = tigrSaveImage("./maze_image.png", screen);
+			if(save_check == 0) die("Failed to save image to file.", errno);
+			is_not_saved = false;
+		}
 	}
 
 	tigrFree(screen);

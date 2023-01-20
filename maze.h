@@ -42,7 +42,8 @@ const TPixel Gray = {220,220,220,255};
 bool Print_distances_flag = false;
 bool Draw_maze_flag = false;
 bool Print_path_flag = false;
-bool Performance_test = false;
+bool Performance_test_flag = false;
+bool Save_to_file_flag = false;
 
 void initialize();
 void init_cell(Cell *c, int columns, int row);
