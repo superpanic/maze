@@ -48,8 +48,6 @@ bool Save_to_file_flag = false;
 void initialize();
 void init_cell(Cell *c, int columns, int row);
 void configure_cells();
-Cell *calculate_distances(Cell *root);
-Cell **path_to(Cell *goal, int max_path);
 Cell *cell(int column, int row);
 void link(Cell *ca, Cell *cb, bool bi);
 bool unlink(Cell *ca, Cell *cb, bool bi);
@@ -62,7 +60,9 @@ void binary_tree_maze();
 void sidewinder_maze();
 void aldous_broder_maze();
 
-void free_all();
+Cell *calculate_distances(Cell *root);
+Cell **path_to(Cell *goal, int max_path);
+
 int index_at(int col, int row);
 int row(int index);
 int column(int index);
@@ -77,4 +77,5 @@ void draw(Cell **grid, Cell **breadcrumbs, int max_distance);
 
 TPixel color_grid_distance(Cell *cell, int max);
 
+void free_all();
 void die(char *e, int n);

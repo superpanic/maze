@@ -162,38 +162,6 @@ void configure_cells() {
 	}
 }
 
-Cell *calculate_distances(Cell *root) {
-	int max_cells = 64;
-	Cell *front[max_cells];
-	front[0] = root;
-	int front_count = 1; // counting root as #1
-	root->solved = true;
-	Cell *max_distance_cell = root;
-	while(front_count>0){
-		if(front_count>max_cells) die("Maze too large for calculating distances.", errno);
-		Cell *new_front[max_cells];
-		int new_front_count = 0;
-
-		for(int i=0; i<front_count; i++) {
-			Cell *cell = front[i];
-			for(int j=0; j<cell->links_count; j++) {
-				Cell *linked = cell->links[j];
-				if(linked->solved) continue; // if distance more than 0 skip
-				linked->distance = cell->distance + 1;
-				if(linked->distance > max_distance_cell->distance) 
-					max_distance_cell = linked;
-				linked->solved = true;
-				new_front[new_front_count] = linked;
-				new_front_count++;
-			}
-		}
-
-		front_count = new_front_count;
-		for(int k=0; k<new_front_count; k++) front[k] = new_front[k];
-	}
-	return max_distance_cell;
-}
-
 Cell *cell(int column, int row) {
 	if(column < 0 || column >= Columns) return NULL;
 	if(row < 0 || row >= Rows) return NULL;
@@ -302,27 +270,6 @@ void sidewinder_maze() {
 	}
 }
 
-clock_t performance_test(void (*alg)(), int runs) {
-	clock_t t = clock();
-	for(int i=0; i<runs; i++) {
-		(*alg)();
-		clear_maze_links();
-	}
-	clock_t time_passed = clock() - t;
-	return time_passed;
-}
-
-void clear_maze_links() {
-	int s = size();
-	for(int i=0; i<s; i++) {
-		Cell *c = Grid[i];
-		for(int l=0;l<c->links_count;l++) {
-			c->links[l] = NULL;
-		}
-		c->links_count = 0;
-	}
-}
-
 void aldous_broder_maze() {
 	Cell *c = random_cell();
 	int cells_count = Columns * Rows;
@@ -340,7 +287,39 @@ void aldous_broder_maze() {
 	}
 }
 
-// needs to free() return array
+Cell *calculate_distances(Cell *root) {
+	int max_cells = 64;
+	Cell *front[max_cells];
+	front[0] = root;
+	int front_count = 1; // counting root as #1
+	root->solved = true;
+	Cell *max_distance_cell = root;
+	while(front_count>0){
+		if(front_count>max_cells) die("Maze too large for calculating distances.", errno);
+		Cell *new_front[max_cells];
+		int new_front_count = 0;
+
+		for(int i=0; i<front_count; i++) {
+			Cell *cell = front[i];
+			for(int j=0; j<cell->links_count; j++) {
+				Cell *linked = cell->links[j];
+				if(linked->solved) continue; // if distance more than 0 skip
+				linked->distance = cell->distance + 1;
+				if(linked->distance > max_distance_cell->distance) 
+					max_distance_cell = linked;
+				linked->solved = true;
+				new_front[new_front_count] = linked;
+				new_front_count++;
+			}
+		}
+
+		front_count = new_front_count;
+		for(int k=0; k<new_front_count; k++) front[k] = new_front[k];
+	}
+	return max_distance_cell;
+}
+
+// path_to, caller expected to free() return array
 Cell **path_to(Cell *goal, int max_path) {
 	if(!goal->solved) die("Trying to find closest path before solving maze.", errno);
 	Cell *current = goal;
@@ -387,6 +366,27 @@ Cell *random_cell() {
 // return maze size
 int size() {
 	return Rows * Columns;
+}
+
+void clear_maze_links() {
+	int s = size();
+	for(int i=0; i<s; i++) {
+		Cell *c = Grid[i];
+		for(int l=0;l<c->links_count;l++) {
+			c->links[l] = NULL;
+		}
+		c->links_count = 0;
+	}
+}
+
+clock_t performance_test(void (*alg)(), int runs) {
+	clock_t t = clock();
+	for(int i=0; i<runs; i++) {
+		(*alg)();
+		clear_maze_links();
+	}
+	clock_t time_passed = clock() - t;
+	return time_passed;
 }
 
 //
