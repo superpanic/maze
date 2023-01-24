@@ -21,9 +21,9 @@ typedef struct Cell {
 	struct Cell **links;
 	int links_size;
 	int links_count;
-	bool solved;
-	int distance;
-	bool path;
+	bool solved; // true if distance is calculated for this cell
+	int distance; // distance in steps from root
+	bool path; // currently solved path
 } Cell;
 
 Cell **Grid;
@@ -59,6 +59,7 @@ Cell **neighbors(Cell *c, int *counter);
 void binary_tree_maze();
 void sidewinder_maze();
 void aldous_broder_maze();
+void wilson_maze();
 
 Cell *calculate_distances(Cell *root);
 Cell **path_to(Cell *goal, int max_path);
@@ -67,7 +68,8 @@ int index_at(int col, int row);
 int row(int index);
 int column(int index);
 int size();
-Cell *random_cell();
+int remove_cell_from_array(Cell **arr, int cell_index, int length);
+Cell *random_cell(Cell **cells, int *cell_index);
 void clear_maze_links();
 clock_t performance_test(void (*alg)(), int runs);
 

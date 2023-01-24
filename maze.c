@@ -48,12 +48,16 @@ int main(int argc, char *argv[]) {
 						maze_algorithm = &aldous_broder_maze;
 						break;
 
+					case 'w':
+						maze_algorithm = &wilson_maze;
+						break;
+
 					case 'd':
 						Print_distances_flag = true;
 						break;
 
 #ifdef MAZE_TIGR
-					case 'w':
+					case 'i':
 						Draw_maze_flag = true;
 						break;
 #endif
@@ -72,7 +76,7 @@ int main(int argc, char *argv[]) {
 						break;
 
 					default:
-						die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use aldous broder algorithm\n -d print distances\n -w draw fancy maze in window using tigr\n -p print path\n -t performance test\n -o save maze image file\n", errno);
+						die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use [a]ldous broder algorithm\n -w use [w]ilson algorithm\n -d print [d]istances\n -i draw fancy [i]mage in window using tigr\n -p [p]rint path\n -t performance [t]est\n -o save maze image to [o]utput file\n", errno);
 						break;
 				}
 			}
@@ -271,9 +275,9 @@ void sidewinder_maze() {
 }
 
 void aldous_broder_maze() {
-	Cell *c = random_cell();
-	int cells_count = Columns * Rows;
-	int unvisited = cells_count -1;
+	Cell *c = random_cell(NULL, NULL);
+	int cell_count = Columns * Rows;
+	int unvisited = cell_count -1;
 	while(unvisited > 0) {
 		int counter;
 		Cell **neighbor_array = neighbors(c, &counter); 
@@ -285,6 +289,27 @@ void aldous_broder_maze() {
 		}
 		c = n;
 	}
+}
+
+void wilson_maze() {
+	int cell_count = Columns * Rows;
+	int unvisited_length = cell_count;
+	Cell *unvisited[cell_count];
+	for(int c =0; c<cell_count; c++) {
+		unvisited[c] = Grid[c];
+	}
+	int cell_index;
+	Cell *first = random_cell(unvisited, &cell_index);
+	unvisited_length = remove_cell_from_array(unvisited, cell_index, unvisited_length);	
+}
+
+int remove_cell_from_array(Cell **arr, int cell_index, int length) {
+	for(int i=cell_index; i<length; i++) {
+		if(i==length-1) arr[i]=NULL;
+		else arr[i]=arr[i+1];
+	}
+	length--;
+	return length;
 }
 
 Cell *calculate_distances(Cell *root) {
@@ -358,9 +383,11 @@ int column(int index) {
 	return index % Columns;
 }
 
-Cell *random_cell() {
+Cell *random_cell(Cell **cells, int *cell_index) {
+	if(cells==NULL) cells = Grid;
 	int rnd = rand() % size();
-	return Grid[rnd];
+	if(cell_index) *cell_index = rnd;
+	return cells[rnd];
 }
 
 // return maze size
