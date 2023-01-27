@@ -6,9 +6,20 @@
 #define LINKS_SIZE_STEP 4
 #define MAZE_TIGR
 
+static int Columns = COLS;
+static int Rows = ROWS;
+
+static Cell **Grid;
+
+static bool Print_distances_flag = false;
+static bool Draw_maze_flag = false;
+static bool Print_path_flag = false;
+static bool Performance_test_flag = false;
+static bool Save_to_file_flag = false;
+
+Tigr* Window;
+
 int main(int argc, char *argv[]) {
-	Columns = COLS;
-	Rows = ROWS;
 
 	void (*maze_algorithm)();
 	maze_algorithm = &binary_tree_maze;
@@ -26,10 +37,6 @@ int main(int argc, char *argv[]) {
 		die("./maze [columns] [rows]\n", errno);
 	}
 
-	Print_distances_flag = false;
-	Print_path_flag = false;
-	Performance_test_flag = false;
-	Save_to_file_flag = false;
 
 	if(argc>3) {
 		for(int i=argc-3; i<argc; i++) {
@@ -129,8 +136,9 @@ end:
 	exit(EXIT_SUCCESS);
 }
 
+// initialize allocate memory (malloc) for the array contaning the main grid of cells
 void initialize() {
-	int cell_count = Columns * Rows;
+	int cell_count = size();
 	Grid = (Cell**)malloc(cell_count * sizeof(Cell*));
 	if(!Grid) die("Failed to allocate memory for grid cells!", errno);
 	for(int i=0; i<cell_count; i++) {
@@ -142,6 +150,7 @@ void initialize() {
 	configure_cells();
 }
 
+// init_cell allocate memory (calloc) for each cells links array
 void init_cell(Cell *c, int column, int row) {
 	c->column = column;
 	c->row = row;
@@ -156,7 +165,7 @@ void init_cell(Cell *c, int column, int row) {
 
 void configure_cells() {
 	if(!Grid) die("Grid not initilized.", errno);
-	int cell_count = Columns * Rows;
+	int cell_count = size();
 	for(int i=0; i<cell_count; i++) {
 		Cell *c = Grid[i];
 		if(i>=Columns) c->north = Grid[i-Columns];
@@ -172,7 +181,7 @@ Cell *cell(int column, int row) {
 	return Grid[index_at(column, row)];
 }
 
-void link(Cell *ca, Cell *cb, bool is_bidi) {
+void link_cells(Cell *ca, Cell *cb, bool is_bidi) {
 	if(ca->links_count >= ca->links_size) {
 		ca->links_size = ca->links_size + LINKS_SIZE_STEP;
 		ca->links = (Cell **)realloc(ca->links, ca->links_size * sizeof(Cell*));
@@ -182,10 +191,10 @@ void link(Cell *ca, Cell *cb, bool is_bidi) {
 		ca->links[ca->links_count] = cb;
 		ca->links_count++;
 	}
-	if(is_bidi) link(cb, ca, false);
+	if(is_bidi) link_cells(cb, ca, false);
 }
 
-bool unlink(Cell *ca, Cell *cb, bool is_bidi) {
+bool unlink_cells(Cell *ca, Cell *cb, bool is_bidi) {
 	bool is_found = false;
 	for(int i=0; i<ca->links_count; i++) {
 		if(!is_found)
@@ -194,12 +203,8 @@ bool unlink(Cell *ca, Cell *cb, bool is_bidi) {
 			ca->links[i] = ca->links[i+1];
 	}
 	if(is_found) ca->links_count--;
-	if(is_bidi) unlink(cb, ca, false);
+	if(is_bidi) unlink_cells(cb, ca, false);
 	return is_found;
-}
-
-Cell** links(Cell *c) {
-	return c->links;
 }
 
 bool linked(Cell *ca, Cell *cb) {
@@ -213,11 +218,17 @@ bool find_link(Cell *ca, Cell *cb) {
 	return false;
 }
 
-Cell** neighbors(Cell *c, int *counter) {
+Cell** links(Cell *c) {
+	return c->links;
+}
+
+// warning: caller expected to free returned malloc array
+Cell **neighbors(Cell *c, int *counter) {
 	if(MAZE_DEBUG) 
 		printf("    Cell **neighbors(Cell *c)\n    Warning: Remember to free() return value.\n");
 
 	Cell **neighbors = (Cell**) calloc(4, sizeof(Cell*));
+	if(!neighbors) die("Failed allocating memory for neighbors array.", errno);
 	int i=0;
 	if(c->north) neighbors[i++] = c->north;
 	if(c->south) neighbors[i++] = c->south;
@@ -227,10 +238,22 @@ Cell** neighbors(Cell *c, int *counter) {
 	return neighbors;
 }
 
-//
+Cell *get_random_neighbor(Cell *c) {
+	int counter;
+	Cell **neighbor_array = neighbors(c, &counter);
+	int rnd = rand() % counter;
+	Cell *random_neighbor = neighbor_array[rnd];
+	free(neighbor_array);
+	return random_neighbor;
+}
 
+
+
+// ### algorithms
+
+// -b (default)
 void binary_tree_maze() {
-	int cell_count = Columns * Rows;
+	int cell_count = size();
 	for(int i=0; i<cell_count; i++) {
 		Cell *c = Grid[i];
 		int j = 0;
@@ -242,11 +265,12 @@ void binary_tree_maze() {
 		//srand(time(NULL));
 		int rnd = rand() % j;
 		Cell *neighbor = neighbors[rnd];
-		link(c, neighbor, true);
+		link_cells(c, neighbor, true);
 	}
 }
 
-void sidewinder_maze() {
+// -s
+void sidewinder_maze() { 
 	for(int ro=0; ro<Rows; ro++) {
 		Cell *corridor[Columns];
 		int index=0;
@@ -262,48 +286,113 @@ void sidewinder_maze() {
 			if(should_close_out) {
 				int rnd_index = rand() % index;
 				Cell *member = corridor[rnd_index];
-				if(member->north) link(member, member->north, true);
+				if(member->north) link_cells(member, member->north, true);
 				while(index > 0) {
 					index--;
 					corridor[index] = NULL;
 				}
 			} else {
-				link(c, c->east, true);
+				link_cells(c, c->east, true);
 			}
 		}
 	}
 }
 
-void aldous_broder_maze() {
-	Cell *c = random_cell(NULL, NULL);
-	int cell_count = Columns * Rows;
+// -s
+void aldous_broder_maze() { 
+	Cell *c = random_cell_from_grid(NULL);
+	int cell_count = size();
 	int unvisited = cell_count -1;
+	draw_start();
 	while(unvisited > 0) {
 		int counter;
 		Cell **neighbor_array = neighbors(c, &counter); 
 		int rnd = random() % counter;
 		Cell *n = neighbor_array[rnd];
 		if(n->links_count==0) {
-			link(c,n, true);
+			link_cells(c,n, true);
+			draw_update(1);
 			unvisited -= 1;
 		}
 		c = n;
 	}
+	draw_end();
 }
 
-void wilson_maze() {
-	int cell_count = Columns * Rows;
+// -w
+void wilson_maze() { 
+	// total cell count
+	int cell_count = size();
+	// max length of new unvisited array is same as total cells
 	int unvisited_length = cell_count;
+	// create the unvisited array
 	Cell *unvisited[cell_count];
-	for(int c =0; c<cell_count; c++) {
-		unvisited[c] = Grid[c];
-	}
+	// copy all cells from Grid to unvisited array
+	for(int c=0; c<cell_count; c++) unvisited[c] = Grid[c];
+	// int used as pointer to get the random cell index
 	int cell_index;
-	Cell *first = random_cell(unvisited, &cell_index);
-	unvisited_length = remove_cell_from_array(unvisited, cell_index, unvisited_length);	
+	// get a random cell from the unvisited array
+	Cell *first = random_cell_from_array(unvisited, unvisited_length, &cell_index);
+	// remove the random cell from unvisited array, also update unvisited_length 
+	unvisited_length = remove_cell_from_array(unvisited, cell_index, unvisited_length);
+	draw_start();
+	// while there still are cells that are unvisited
+	while(unvisited_length>0) {	
+		// get a random cell from the unvisited array
+		Cell *cell = random_cell_from_array(unvisited, unvisited_length, &cell_index);
+		// create path array with total cell count as max length
+		Cell *path[cell_count];
+		// set all array cells to NULL
+		for(int i=0; i<cell_count; i++) path[i] = NULL;
+		// set path length to 0
+		int path_length = 0;
+		// add the random cell first in path array
+		path[0] = cell;
+		// increase path length
+		path_length++;
+		// while unvisited includes the random cell
+		while(array_includes_cell(unvisited, cell, unvisited_length, NULL)) {
+			// get a random neighbor cell
+			cell = get_random_neighbor(cell);
+			// find the random cell position in array
+			int position;
+			array_includes_cell(path, cell, path_length, &position);
+			// if it exists in array
+			if(position >= 0) {
+				// truncate path, 0 to position
+				path_length = position;
+			} else {
+				// add neighbor cell to path
+				path[path_length] = cell;
+				// increase path length
+				path_length++;
+			}
+		}
+		for(int i=0; i<path_length-1; i++) {
+			link_cells(path[i], path[i+1], true);
+			draw_update(1);
+			unvisited_length = remove_cell_from_array(unvisited, i, unvisited_length);
+		}
+	}
+	draw_end();
 }
 
-int remove_cell_from_array(Cell **arr, int cell_index, int length) {
+// ### end algorithms
+
+
+
+bool array_includes_cell(Cell *arr[], Cell *c, int arr_len, int *index) {
+	for(int i=0; i<arr_len; i++) {
+		if(arr[i] == c) {
+			if(index) *index = i;
+			return true;
+		}
+	}
+	if(index) *index = -1;
+	return false;
+}
+
+int remove_cell_from_array(Cell *arr[], int cell_index, int length) {
 	for(int i=cell_index; i<length; i++) {
 		if(i==length-1) arr[i]=NULL;
 		else arr[i]=arr[i+1];
@@ -344,31 +433,6 @@ Cell *calculate_distances(Cell *root) {
 	return max_distance_cell;
 }
 
-// path_to, caller expected to free() return array
-Cell **path_to(Cell *goal, int max_path) {
-	if(!goal->solved) die("Trying to find closest path before solving maze.", errno);
-	Cell *current = goal;
-	Cell **breadcrumbs = (Cell**)malloc((max_path+1) * sizeof(Cell*));
-	int breadcrumbs_counter = 0;
-	breadcrumbs[breadcrumbs_counter++] = current;
-	current->path = true;
-	while(current->distance >= 0 && breadcrumbs_counter <= max_path) {
-		int lowest = current->distance;
-		Cell *candidate;
-		for(int i=0; i<current->links_count; i++) {
-			if(current->links[i]->distance < lowest) {
-				lowest = current->links[i]->distance;
-				candidate = current->links[i];
-			}
-		}
-		breadcrumbs[breadcrumbs_counter++] = candidate;
-		candidate->path = true;
-		current = candidate;
-	}
-	return breadcrumbs;
-}
-
-
 //
 
 int index_at(int col, int row) {
@@ -383,16 +447,25 @@ int column(int index) {
 	return index % Columns;
 }
 
-Cell *random_cell(Cell **cells, int *cell_index) {
-	if(cells==NULL) cells = Grid;
-	int rnd = rand() % size();
-	if(cell_index) *cell_index = rnd;
-	return cells[rnd];
-}
-
 // return maze size
 int size() {
-	return Rows * Columns;
+	return Columns * Rows;
+}
+
+Cell *random_cell_from_grid(int *index) {
+	int r = rand() % size();
+	if(index) *index = r;
+	return Grid[r];
+}
+
+Cell *random_cell_from_array(Cell **array, int length, int *index) {
+	if(!array) {
+		array = Grid;
+		length = size();
+	}
+	int r = rand() % length;
+	if(index) *index = r;
+	return array[r];
 }
 
 void clear_maze_links() {
@@ -416,13 +489,41 @@ clock_t performance_test(void (*alg)(), int runs) {
 	return time_passed;
 }
 
-//
+
+
+// ### output
+
+// warning: caller expected to free malloced array
 
 size_t get_maze_string_size() {
 	size_t str_size = (Columns * 4 + 1) * (Rows * 2 + 1);
 	str_size += Rows * 2; // for newlines, 2 newlines for each row
 	str_size += 1;	      // for '\0'
 	return str_size;
+}
+
+Cell **path_to(Cell *goal, int max_path) {
+	if(!goal->solved) die("Trying to find closest path before solving maze.", errno);
+	Cell *current = goal;
+	Cell **breadcrumbs = (Cell**)malloc((max_path+1) * sizeof(Cell*));
+	if(!breadcrumbs) die("Failed to allocate memory for breadcrumbs array.", errno);
+	int breadcrumbs_counter = 0;
+	breadcrumbs[breadcrumbs_counter++] = current;
+	current->path = true;
+	while(current->distance >= 0 && breadcrumbs_counter <= max_path) {
+		int lowest = current->distance;
+		Cell *candidate;
+		for(int i=0; i<current->links_count; i++) {
+			if(current->links[i]->distance < lowest) {
+				lowest = current->links[i]->distance;
+				candidate = current->links[i];
+			}
+		}
+		breadcrumbs[breadcrumbs_counter++] = candidate;
+		candidate->path = true;
+		current = candidate;
+	}
+	return breadcrumbs;
 }
 
 void to_string(char str_out[], size_t str_size, bool print_distances) {
@@ -496,6 +597,50 @@ void to_string(char str_out[], size_t str_size, bool print_distances) {
 		strcpy(str_header, "\n");
 		str_header++;
 	}
+}
+
+void draw_start() {
+	int win_width = 320;
+	int win_height = 240;
+	
+	Window = tigrWindow(win_width, win_height, "Maze", 0);
+	if(!Window) die("Failed to create tigrWindow.", errno);
+}
+
+void draw_update(int slow) {
+	int cell_count = size();
+	int cell_size = 16;
+	int win_width = 320;
+	int win_height = 240;
+	int half_cell_size = cell_size/2;
+	int img_width = Columns * cell_size;
+	int img_height = Rows * cell_size;
+	int offx = (win_width-img_width)/2;
+	int offy = (win_height-img_height)/2;
+	
+	tigrClear(Window, White);
+	for(int i=0; i<cell_count; i++) {
+		Cell *c = Grid[i];
+		int x1 = (column(i) * cell_size) + offx;
+		int y1 = (row(i) * cell_size) + offy;
+		int x2 = (column(i)+1) * cell_size + offx;
+		int y2 = (row(i)+1) * cell_size + offy;
+		if(!c->north) tigrLine(Window, x1,y1,x2,y1,Black); // north edge
+		if(!c->west) tigrLine(Window, x1,y1,x1,y2,Black); // western edge
+		if(!linked(c, c->east)) tigrLine(Window,x2,y1,x2,y2+1,Black);
+		if(!linked(c, c->south)) tigrLine(Window,x1,y2,x2,y2,Black);
+	}
+	tigrUpdate(Window);
+	usleep(slow * 100000);
+}
+
+void draw_end() {
+	while (!tigrClosed(Window) && !tigrKeyDown(Window, TK_ESCAPE)) { 
+		//usleep(1*100000);
+		tigrPrint(Window, tfont, 10, 10, tigrRGB(0xff, 0xff, 0xff), "Done");
+		tigrUpdate(Window);
+	}
+	if(Window) tigrFree(Window);
 }
 
 void draw(Cell **grid, Cell **breadcrumbs, int max_distance) {
@@ -582,11 +727,13 @@ TPixel color_grid_distance(Cell *cell, int max) {
 	return col;
 }
 
-//
+// end output
+
+
 
 void free_all() {
 	if(!Grid) return;
-	int cell_count = Columns * Rows;
+	int cell_count = size();
 	for(int i=0; i<cell_count; i++) {
 		if(Grid[i]->links) 
 			free(Grid[i]->links);

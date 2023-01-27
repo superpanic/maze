@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <unistd.h>
 #include "tigr/tigr.h"
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
@@ -26,57 +27,51 @@ typedef struct Cell {
 	bool path; // currently solved path
 } Cell;
 
-Cell **Grid;
-
-int Rows;
-int Columns;
-
-const TPixel White = {255,255,255,255};
-const TPixel Black = {0,0,0,255};
-const TPixel Red = {255,0,0,255};
-const TPixel Green = {0,255,0,255};
-const TPixel Blue = {0,0,255,255};
-const TPixel Yellow = {255,255,0,255};
-const TPixel Gray = {220,220,220,255};
-
-bool Print_distances_flag = false;
-bool Draw_maze_flag = false;
-bool Print_path_flag = false;
-bool Performance_test_flag = false;
-bool Save_to_file_flag = false;
+static const TPixel White = {255,255,255,255};
+static const TPixel Black = {0,0,0,255};
+static const TPixel Red = {255,0,0,255};
+static const TPixel Green = {0,255,0,255};
+static const TPixel Blue = {0,0,255,255};
+static const TPixel Yellow = {255,255,0,255};
+static const TPixel Gray = {220,220,220,255};
 
 void initialize();
 void init_cell(Cell *c, int columns, int row);
 void configure_cells();
 Cell *cell(int column, int row);
-void link(Cell *ca, Cell *cb, bool bi);
-bool unlink(Cell *ca, Cell *cb, bool bi);
+void link_cells(Cell *ca, Cell *cb, bool bi);
+bool unlink_cells(Cell *ca, Cell *cb, bool bi);
 bool linked(Cell *ca, Cell *cb);
 bool find_link(Cell *ca, Cell *cb);
 Cell **links(Cell *c);
 Cell **neighbors(Cell *c, int *counter);
+Cell *get_random_neighbor(Cell *c);
 
 void binary_tree_maze();
 void sidewinder_maze();
 void aldous_broder_maze();
 void wilson_maze();
 
+bool array_includes_cell(Cell *arr[], Cell *c, int arr_len, int *index);
+int remove_cell_from_array(Cell *arr[], int cell_index, int length);
 Cell *calculate_distances(Cell *root);
-Cell **path_to(Cell *goal, int max_path);
 
 int index_at(int col, int row);
 int row(int index);
 int column(int index);
 int size();
-int remove_cell_from_array(Cell **arr, int cell_index, int length);
-Cell *random_cell(Cell **cells, int *cell_index);
+Cell *random_cell_from_grid(int *index);
+Cell *random_cell_from_array(Cell **array, int length, int *index);
 void clear_maze_links();
 clock_t performance_test(void (*alg)(), int runs);
 
 size_t get_maze_string_size();
+Cell **path_to(Cell *goal, int max_path);
 void to_string(char str_out[], size_t str_size, bool print_distances);
+void draw_start();
+void draw_update(int slow);
+void draw_end();
 void draw(Cell **grid, Cell **breadcrumbs, int max_distance);
-
 TPixel color_grid_distance(Cell *cell, int max);
 
 void free_all();
