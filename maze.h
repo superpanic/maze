@@ -23,6 +23,7 @@ typedef struct Cell {
 	int links_size;
 	int links_count;
 	bool solved; // true if distance is calculated for this cell
+	char marker;
 	int distance; // distance in steps from root
 	bool path; // currently solved path
 } Cell;

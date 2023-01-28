@@ -16,6 +16,7 @@ static bool Draw_maze_flag = false;
 static bool Print_path_flag = false;
 static bool Performance_test_flag = false;
 static bool Save_to_file_flag = false;
+static bool Draw_live_flag = false;
 
 Tigr* Window;
 
@@ -82,6 +83,10 @@ int main(int argc, char *argv[]) {
 						Save_to_file_flag = true;
 						break;
 
+					case 'l':
+						Draw_live_flag = true;
+						break;
+
 					default:
 						die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use [a]ldous broder algorithm\n -w use [w]ilson algorithm\n -d print [d]istances\n -i draw fancy [i]mage in window using tigr\n -p [p]rint path\n -t performance [t]est\n -o save maze image to [o]utput file\n", errno);
 						break;
@@ -132,7 +137,8 @@ int main(int argc, char *argv[]) {
 end:
 	// free and exit
 	free(breadcrumbs);
-	free_all();	
+	free_all();
+	draw_end();
 	exit(EXIT_SUCCESS);
 }
 
@@ -161,6 +167,7 @@ void init_cell(Cell *c, int column, int row) {
 	c->distance = 0;
 	c->solved = false;
 	c->path = false;
+	c->marker = ' ';
 }
 
 void configure_cells() {
@@ -254,6 +261,7 @@ Cell *get_random_neighbor(Cell *c) {
 // -b (default)
 void binary_tree_maze() {
 	int cell_count = size();
+	if(Draw_live_flag) draw_start();
 	for(int i=0; i<cell_count; i++) {
 		Cell *c = Grid[i];
 		int j = 0;
@@ -266,11 +274,13 @@ void binary_tree_maze() {
 		int rnd = rand() % j;
 		Cell *neighbor = neighbors[rnd];
 		link_cells(c, neighbor, true);
+		if(Draw_live_flag) draw_update(10);
 	}
 }
 
 // -s
 void sidewinder_maze() { 
+	if(Draw_live_flag) draw_start();
 	for(int ro=0; ro<Rows; ro++) {
 		Cell *corridor[Columns];
 		int index=0;
@@ -293,6 +303,7 @@ void sidewinder_maze() {
 				}
 			} else {
 				link_cells(c, c->east, true);
+				if(Draw_live_flag) draw_update(10);
 			}
 		}
 	}
@@ -303,7 +314,7 @@ void aldous_broder_maze() {
 	Cell *c = random_cell_from_grid(NULL);
 	int cell_count = size();
 	int unvisited = cell_count -1;
-	draw_start();
+	if(Draw_live_flag) draw_start();
 	while(unvisited > 0) {
 		int counter;
 		Cell **neighbor_array = neighbors(c, &counter); 
@@ -311,70 +322,51 @@ void aldous_broder_maze() {
 		Cell *n = neighbor_array[rnd];
 		if(n->links_count==0) {
 			link_cells(c,n, true);
-			draw_update(1);
+			if(Draw_live_flag) draw_update(10);
 			unvisited -= 1;
 		}
 		c = n;
 	}
-	draw_end();
 }
 
 // -w
 void wilson_maze() { 
-	// total cell count
 	int cell_count = size();
-	// max length of new unvisited array is same as total cells
 	int unvisited_length = cell_count;
-	// create the unvisited array
-	Cell *unvisited[cell_count];
-	// copy all cells from Grid to unvisited array
-	for(int c=0; c<cell_count; c++) unvisited[c] = Grid[c];
-	// int used as pointer to get the random cell index
+	Cell *unvisited[unvisited_length];
+	for(int c=0; c<unvisited_length; c++) unvisited[c] = Grid[c];
 	int cell_index;
-	// get a random cell from the unvisited array
 	Cell *first = random_cell_from_array(unvisited, unvisited_length, &cell_index);
-	// remove the random cell from unvisited array, also update unvisited_length 
 	unvisited_length = remove_cell_from_array(unvisited, cell_index, unvisited_length);
-	draw_start();
-	// while there still are cells that are unvisited
+	if(Draw_live_flag) draw_start();
+
 	while(unvisited_length>0) {	
-		// get a random cell from the unvisited array
 		Cell *cell = random_cell_from_array(unvisited, unvisited_length, &cell_index);
-		// create path array with total cell count as max length
 		Cell *path[cell_count];
-		// set all array cells to NULL
 		for(int i=0; i<cell_count; i++) path[i] = NULL;
-		// set path length to 0
 		int path_length = 0;
-		// add the random cell first in path array
 		path[0] = cell;
-		// increase path length
 		path_length++;
-		// while unvisited includes the random cell
+
 		while(array_includes_cell(unvisited, cell, unvisited_length, NULL)) {
-			// get a random neighbor cell
 			cell = get_random_neighbor(cell);
-			// find the random cell position in array
 			int position;
 			array_includes_cell(path, cell, path_length, &position);
-			// if it exists in array
 			if(position >= 0) {
-				// truncate path, 0 to position
-				path_length = position;
+				path_length = position+1; // path_length = length / position = index
+				cell->marker = '*';
 			} else {
-				// add neighbor cell to path
 				path[path_length] = cell;
-				// increase path length
 				path_length++;
 			}
 		}
+
 		for(int i=0; i<path_length-1; i++) {
 			link_cells(path[i], path[i+1], true);
-			draw_update(1);
+			if(Draw_live_flag) draw_update(1);
 			unvisited_length = remove_cell_from_array(unvisited, i, unvisited_length);
 		}
 	}
-	draw_end();
 }
 
 // ### end algorithms
@@ -567,14 +559,16 @@ void to_string(char str_out[], size_t str_size, bool print_distances) {
 					if(c->path) sprintf(top_header, "%s%2d* ", top_header, c->distance);
 					else sprintf(top_header, "%s%2d  ", top_header, c->distance);
 				} else {
-					strcpy(top_header, "    ");
+					//strcpy(top_header, "    ");
+					sprintf(top_header, "%s %c  ", top_header, c->marker);
 				}
 			} else {
 				if(print_distances) {
 					if(c->path) sprintf(top_header, "%s%2d*|", top_header, c->distance);
 					else sprintf(top_header, "%s%2d |", top_header, c->distance);
 				} else {
-					strcpy(top_header, "   |");
+					//strcpy(top_header, "   |");
+					sprintf(top_header, "%s %c |", top_header, c->marker);
 				}
 			}
 			top_header += 4;
@@ -602,7 +596,6 @@ void to_string(char str_out[], size_t str_size, bool print_distances) {
 void draw_start() {
 	int win_width = 320;
 	int win_height = 240;
-	
 	Window = tigrWindow(win_width, win_height, "Maze", 0);
 	if(!Window) die("Failed to create tigrWindow.", errno);
 }
@@ -631,10 +624,11 @@ void draw_update(int slow) {
 		if(!linked(c, c->south)) tigrLine(Window,x1,y2,x2,y2,Black);
 	}
 	tigrUpdate(Window);
-	usleep(slow * 100000);
+	usleep(slow * 10000);
 }
 
 void draw_end() {
+	if(!Window) return;
 	while (!tigrClosed(Window) && !tigrKeyDown(Window, TK_ESCAPE)) { 
 		//usleep(1*100000);
 		tigrPrint(Window, tfont, 10, 10, tigrRGB(0xff, 0xff, 0xff), "Done");
