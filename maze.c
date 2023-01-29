@@ -354,7 +354,6 @@ void wilson_maze() {
 			array_includes_cell(path, cell, path_length, &position);
 			if(position >= 0) {
 				path_length = position+1; // path_length = length / position = index
-				cell->marker = '*';
 			} else {
 				path[path_length] = cell;
 				path_length++;
@@ -363,8 +362,10 @@ void wilson_maze() {
 
 		for(int i=0; i<path_length-1; i++) {
 			link_cells(path[i], path[i+1], true);
-			if(Draw_live_flag) draw_update(1);
-			unvisited_length = remove_cell_from_array(unvisited, i, unvisited_length);
+			if(Draw_live_flag) draw_update(10);
+			int index;
+			array_includes_cell(unvisited, path[i], unvisited_length, &index);
+			if(index >= 0) unvisited_length = remove_cell_from_array(unvisited, index, unvisited_length);
 		}
 	}
 }

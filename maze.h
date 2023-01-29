@@ -13,8 +13,8 @@
 
 // A single cell in the maze, with links and neighbours.
 typedef struct Cell {
-	uint8_t row;
 	uint8_t column;
+	uint8_t row;
 	struct Cell *north;
 	struct Cell *south;
 	struct Cell *east;
