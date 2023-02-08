@@ -20,10 +20,9 @@ typedef struct Cell {
 	struct Cell *east;
 	struct Cell *west;
 	struct Cell **links;
-	int links_size;
-	int links_count;
+	int links_size; // allocated in memory
+	int links_count; // numnber of links currently connected to this cell
 	bool solved; // true if distance is calculated for this cell
-	char marker;
 	int distance; // distance in steps from root
 	bool path; // currently solved path
 } Cell;
@@ -46,11 +45,14 @@ bool linked(Cell *ca, Cell *cb);
 bool find_link(Cell *ca, Cell *cb);
 Cell **links(Cell *c);
 Cell **neighbors(Cell *c, int *counter);
+int neighbors_count(Cell *c);
 Cell *get_random_neighbor(Cell *c);
+Cell *get_random_neighbor_without_link(Cell *c);
 
 void binary_tree_maze();
 void sidewinder_maze();
 void aldous_broder_maze();
+void hunt_and_kill();
 void wilson_maze();
 
 bool array_includes_cell(Cell *arr[], Cell *c, int arr_len, int *index);

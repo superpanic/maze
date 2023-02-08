@@ -60,15 +60,13 @@ int main(int argc, char *argv[]) {
 						maze_algorithm = &wilson_maze;
 						break;
 
+					case 'h':
+						maze_algorithm = &hunt_and_kill;
+						break;
+
 					case 'd':
 						Print_distances_flag = true;
 						break;
-
-#ifdef MAZE_TIGR
-					case 'i':
-						Draw_maze_flag = true;
-						break;
-#endif
 
 					case 'p':
 						Print_path_flag = true;
@@ -76,6 +74,10 @@ int main(int argc, char *argv[]) {
 
 					case 't':
 						Performance_test_flag = true;
+						break;
+
+					case 'i':
+						Draw_maze_flag = true;
 						break;
 
 					case 'o':
@@ -88,7 +90,7 @@ int main(int argc, char *argv[]) {
 						break;
 
 					default:
-						die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use [a]ldous broder algorithm\n -w use [w]ilson algorithm\n -d print [d]istances\n -i draw fancy [i]mage in window using tigr\n -p [p]rint path\n -t performance [t]est\n -o save maze image to [o]utput file\n", errno);
+						die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use [a]ldous broder algorithm\n -w use [w]ilson algorithm\n -h use [h[unt and kill algorithm\n-d print [d]istances\n -i draw fancy [i]mage in window using tigr\n -p [p]rint path\n -t performance [t]est\n -o save maze image to [o]utput file\n", errno);
 						break;
 				}
 			}
@@ -97,6 +99,8 @@ int main(int argc, char *argv[]) {
 
 	// create the maze
 	initialize();
+
+	srand(time(NULL));
 	(*maze_algorithm)();
 	
 	// solve the maze
@@ -167,18 +171,22 @@ void init_cell(Cell *c, int column, int row) {
 	c->distance = 0;
 	c->solved = false;
 	c->path = false;
-	c->marker = ' ';
 }
 
 void configure_cells() {
 	if(!Grid) die("Grid not initilized.", errno);
 	int cell_count = size();
+	int neighbors = 0;
 	for(int i=0; i<cell_count; i++) {
 		Cell *c = Grid[i];
 		if(i>=Columns) c->north = Grid[i-Columns];
+		else c->north = NULL;
 		if(row(i)<Rows-1) c->south = Grid[i+Columns];
+		else c->south = NULL;
 		if(column(i)<Columns-1) c->east = Grid[i+1];
+		else c->east = NULL;
 		if(column(i)>0) c->west = Grid[i-1];
+		else c->west = NULL;
 	}
 }
 
@@ -215,13 +223,14 @@ bool unlink_cells(Cell *ca, Cell *cb, bool is_bidi) {
 }
 
 bool linked(Cell *ca, Cell *cb) {
-	return(find_link(ca,cb)>0);
+	if(ca && cb) return(find_link(ca,cb)>0);
+	return false;
 }
 
 bool find_link(Cell *ca, Cell *cb) {
-	for(int i=0; i<ca->links_count; i++) {
-		if(ca->links[i] == cb) return true;
-	}
+	if(ca && cb) 
+		for(int i=0; i<ca->links_count; i++) 
+			if(ca->links[i] == cb) return true;
 	return false;
 }
 
@@ -245,6 +254,28 @@ Cell **neighbors(Cell *c, int *counter) {
 	return neighbors;
 }
 
+// warning: caller expected to free returned malloc array
+Cell **neighbors_unlinked(Cell *c, int *counter) {
+	Cell **arr = (Cell**) calloc(4, sizeof(Cell*));
+	if(!arr) die("Failed allocating memory for neighbors array.", errno);
+	int i=0;
+	if(c->north && !linked(c, c->north)) arr[i++] = c->north;
+	if(c->south && !linked(c, c->south)) arr[i++] = c->south;
+	if(c->east  && !linked(c, c->east)) arr[i++] = c->east;
+	if(c->west  && !linked(c, c->west)) arr[i++] = c->west;
+	*counter = i;
+	return arr;
+}
+
+int neighbors_count(Cell *c) {
+	int n=0;
+	if(c->north) n++;
+	if(c->south) n++;
+	if(c->east) n++;
+	if(c->west) n++;
+	return n;
+}
+
 Cell *get_random_neighbor(Cell *c) {
 	int counter;
 	Cell **neighbor_array = neighbors(c, &counter);
@@ -254,7 +285,24 @@ Cell *get_random_neighbor(Cell *c) {
 	return random_neighbor;
 }
 
-
+Cell *get_random_neighbor_without_link(Cell *c) {
+	int counter;
+	Cell **unlinked = neighbors_unlinked(c, &counter);
+	Cell *random_cell = NULL;
+	if(counter > 0) {
+		Cell *free_cells[counter];
+		int head = 0;
+		for(int i=0; i<counter; i++) {
+			if(unlinked[i]->links_count==0) free_cells[head++] = unlinked[i];
+		}
+		if(head>0) {
+			int rnd = random() % head;
+			random_cell = free_cells[rnd];
+		}
+	}
+	if(unlinked) free(unlinked);
+	return random_cell;
+}
 
 // ### algorithms
 
@@ -320,6 +368,7 @@ void aldous_broder_maze() {
 		Cell **neighbor_array = neighbors(c, &counter); 
 		int rnd = random() % counter;
 		Cell *n = neighbor_array[rnd];
+		free(neighbor_array);
 		if(n->links_count==0) {
 			link_cells(c,n, true);
 			if(Draw_live_flag) draw_update(10);
@@ -353,7 +402,7 @@ void wilson_maze() {
 			int position;
 			array_includes_cell(path, cell, path_length, &position);
 			if(position >= 0) {
-				path_length = position+1; // path_length = length / position = index
+				path_length = position+1;
 			} else {
 				path[path_length] = cell;
 				path_length++;
@@ -369,6 +418,60 @@ void wilson_maze() {
 		}
 	}
 }
+
+// -h
+void hunt_and_kill() {
+	int cell_count = size();
+	Cell *c = random_cell_from_grid(NULL);
+	int unvisited = cell_count-1;
+	bool kill_mode = true;
+	
+	enum MODE {kill, hunt};
+	enum MODE mode = kill;
+
+	while(unvisited > 0) {
+		switch(mode) {
+			case kill: {
+				printf("%d %d\n", c->column, c->row);
+				Cell *l = NULL;
+				l = get_random_neighbor_without_link(c);
+				if(!l) {
+					mode = hunt;
+				} else {
+					link_cells(c, l, true);
+					unvisited--;
+					c = l;
+				}
+				break;
+			}
+			case hunt: {
+				for(int i=0; i<cell_count; i++) {
+					c = Grid[i];
+					if(c->links_count > 0) continue;
+					int cnt;
+					Cell **arr = neighbors(c, &cnt);
+					Cell *arr_lnk[cnt];
+					int head = 0;
+					for(int j=0; j<cnt; j++) {
+						if(arr[j]->links_count>0) arr_lnk[head++] = arr[j];					
+					}
+					if(arr) free(arr);
+					if(head>0){
+						int rnd = random() % head;
+						link_cells(c, arr_lnk[rnd], true);
+						c = arr_lnk[rnd];
+						unvisited--;
+						mode = kill;
+						break;
+					}
+				}
+				break;
+			}
+		}
+	
+	}
+}
+
 
 // ### end algorithms
 
@@ -560,16 +663,14 @@ void to_string(char str_out[], size_t str_size, bool print_distances) {
 					if(c->path) sprintf(top_header, "%s%2d* ", top_header, c->distance);
 					else sprintf(top_header, "%s%2d  ", top_header, c->distance);
 				} else {
-					//strcpy(top_header, "    ");
-					sprintf(top_header, "%s %c  ", top_header, c->marker);
+					strcpy(top_header, "    ");
 				}
 			} else {
 				if(print_distances) {
 					if(c->path) sprintf(top_header, "%s%2d*|", top_header, c->distance);
 					else sprintf(top_header, "%s%2d |", top_header, c->distance);
 				} else {
-					//strcpy(top_header, "   |");
-					sprintf(top_header, "%s %c |", top_header, c->marker);
+					strcpy(top_header, "   |");
 				}
 			}
 			top_header += 4;
@@ -595,13 +696,19 @@ void to_string(char str_out[], size_t str_size, bool print_distances) {
 }
 
 void draw_start() {
+#ifdef MAZE_TIGR
+
 	int win_width = 320;
 	int win_height = 240;
 	Window = tigrWindow(win_width, win_height, "Maze", 0);
 	if(!Window) die("Failed to create tigrWindow.", errno);
+
+#endif
 }
 
 void draw_update(int slow) {
+#ifdef MAZE_TIGR
+
 	int cell_count = size();
 	int cell_size = 16;
 	int win_width = 320;
@@ -626,9 +733,13 @@ void draw_update(int slow) {
 	}
 	tigrUpdate(Window);
 	usleep(slow * 10000);
+
+#endif
 }
 
 void draw_end() {
+#ifdef MAZE_TIGR
+
 	if(!Window) return;
 	while (!tigrClosed(Window) && !tigrKeyDown(Window, TK_ESCAPE)) { 
 		//usleep(1*100000);
@@ -636,12 +747,12 @@ void draw_end() {
 		tigrUpdate(Window);
 	}
 	if(Window) tigrFree(Window);
+	
+#endif
 }
 
 void draw(Cell **grid, Cell **breadcrumbs, int max_distance) {
-
-	#ifdef MAZE_TIGR
-	// ##############
+#ifdef MAZE_TIGR
 
 	int win_width = 320;
 	int win_height = 240;
@@ -706,9 +817,7 @@ void draw(Cell **grid, Cell **breadcrumbs, int max_distance) {
 
 	tigrFree(screen);
 
-	// ###########
-	#endif
-
+#endif
 }
 
 TPixel color_grid_distance(Cell *cell, int max) {
