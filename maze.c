@@ -1,7 +1,7 @@
 #include "maze.h"
 
-#define COLS 4
-#define ROWS 4
+#define COLS 8
+#define ROWS 8
 #define MAZE_DEBUG false
 #define LINKS_SIZE_STEP 4
 #define MAZE_TIGR
@@ -17,6 +17,7 @@ static bool Print_path_flag = false;
 static bool Performance_test_flag = false;
 static bool Save_to_file_flag = false;
 static bool Draw_live_flag = false;
+static bool Print_dead_ends_flag = false;
 
 Tigr* Window;
 
@@ -25,75 +26,78 @@ int main(int argc, char *argv[]) {
 	void (*maze_algorithm)();
 	maze_algorithm = &binary_tree_maze;
 
+	if(argc == 1) die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use [a]ldous broder algorithm\n -w use [w]ilson algorithm\n -h use [h[unt and kill algorithm\n-d print [d]istances\n -i draw fancy [i]mage in window using tigr\n -p [p]rint path\n -t performance [t]est\n -o save maze image to [o]utput file\n", errno);
+	int arg_head = 1;
 	if(argc >= 3) {
-		int co = atoi(argv[1]);
-		int ro = atoi(argv[2]);
+		int co = atoi(argv[arg_head]);
+		int ro = atoi(argv[arg_head+1]);
+
 		if(co>1 && ro>1) {
 			Columns = co;
 			Rows = ro;
-		} else {
-			die("Please provide parameters [columns]>1 and [rows]>1.", errno);
+			arg_head += 2;
 		}
-	} else {
-		die("./maze [columns] [rows]\n", errno);
 	}
 
+	for( ; arg_head<argc; arg_head++) {
+		char *argument = argv[arg_head];
+		if(argument[0]=='-') {
+			switch(argument[1]) {
+				case 'b':
+					maze_algorithm = &binary_tree_maze;
+					break;
 
-	if(argc>3) {
-		for(int i=argc-3; i<argc; i++) {
-			char *argument = argv[i];
-			if(argument[0]=='-') {
-				switch(argument[1]) {
-					case 'b':
-						maze_algorithm = &binary_tree_maze;
-						break;
+				case 's':
+					maze_algorithm = &sidewinder_maze;
+					break;
 
-					case 's':
-						maze_algorithm = &sidewinder_maze;
-						break;
+				case 'a':
+					maze_algorithm = &aldous_broder_maze;
+					break;
 
-					case 'a':
-						maze_algorithm = &aldous_broder_maze;
-						break;
+				case 'w':
+					maze_algorithm = &wilson_maze;
+					break;
 
-					case 'w':
-						maze_algorithm = &wilson_maze;
-						break;
+				case 'h':
+					maze_algorithm = &hunt_and_kill;
+					break;
 
-					case 'h':
-						maze_algorithm = &hunt_and_kill;
-						break;
+				case 'd':
+					Print_distances_flag = true;
+					break;
 
-					case 'd':
-						Print_distances_flag = true;
-						break;
+				case 'p':
+					Print_path_flag = true;
+					break;
 
-					case 'p':
-						Print_path_flag = true;
-						break;
+				case 'D':
+					Print_dead_ends_flag = true;
+					break;
 
-					case 't':
-						Performance_test_flag = true;
-						break;
+				case 't':
+					Performance_test_flag = true;
+					break;
 
-					case 'i':
-						Draw_maze_flag = true;
-						break;
+				case 'i':
+					Draw_maze_flag = true;
+					break;
 
-					case 'o':
-						Draw_maze_flag = true;
-						Save_to_file_flag = true;
-						break;
+				case 'o':
+					Draw_maze_flag = true;
+					Save_to_file_flag = true;
+					break;
 
-					case 'l':
-						Draw_live_flag = true;
-						break;
+				case 'l':
+					Draw_live_flag = true;
+					break;
 
-					default:
-						die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use [a]ldous broder algorithm\n -w use [w]ilson algorithm\n -h use [h[unt and kill algorithm\n-d print [d]istances\n -i draw fancy [i]mage in window using tigr\n -p [p]rint path\n -t performance [t]est\n -o save maze image to [o]utput file\n", errno);
-						break;
-				}
+				default:
+					die("Error, unknown argument.", errno);
+					break;
 			}
+		} else {
+			die("Error, unknown argument format.", errno);
 		}
 	}
 
@@ -107,12 +111,8 @@ int main(int argc, char *argv[]) {
 	Cell *max_distance_cell = calculate_distances(Grid[0]);
 
 	// get closest path from south east corner
+	// breadcrumbs is malloced – needs free()
 	Cell **breadcrumbs = path_to(max_distance_cell, max_distance_cell->distance);
-
-	for(int i=max_distance_cell->distance; i>=0; i--) {
-		printf("%d ", breadcrumbs[i]->distance);
-	}
-	printf("\n");
 
 	// print to terminal
 	size_t str_size = get_maze_string_size();
@@ -128,6 +128,9 @@ int main(int argc, char *argv[]) {
 			max_distance_cell->column+1, 
 			max_distance_cell->row+1, 
 			max_distance_cell->distance);
+
+	if(Print_dead_ends_flag)
+		printf("Dead ends: %d\n", dead_ends());
 	
 	if(Performance_test_flag) {
 		int test_runs = 1000;
@@ -432,7 +435,6 @@ void hunt_and_kill() {
 	while(unvisited > 0) {
 		switch(mode) {
 			case kill: {
-				printf("%d %d\n", c->column, c->row);
 				Cell *l = NULL;
 				l = get_random_neighbor_without_link(c);
 				if(!l) {
@@ -529,6 +531,15 @@ Cell *calculate_distances(Cell *root) {
 	return max_distance_cell;
 }
 
+int dead_ends() {
+	int cell_count = Columns * Rows;
+	int deads = 0;
+	for(int i=0; i<cell_count; i++) {
+		if(Grid[i]->links_count == 1) deads++;
+	}
+	return deads;
+}
+
 //
 
 int index_at(int col, int row) {
@@ -598,6 +609,7 @@ size_t get_maze_string_size() {
 	return str_size;
 }
 
+// warning: caller expected to free returned malloced array
 Cell **path_to(Cell *goal, int max_path) {
 	if(!goal->solved) die("Trying to find closest path before solving maze.", errno);
 	Cell *current = goal;

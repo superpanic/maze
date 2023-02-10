@@ -58,6 +58,7 @@ void wilson_maze();
 bool array_includes_cell(Cell *arr[], Cell *c, int arr_len, int *index);
 int remove_cell_from_array(Cell *arr[], int cell_index, int length);
 Cell *calculate_distances(Cell *root);
+int dead_ends();
 
 int index_at(int col, int row);
 int row(int index);
