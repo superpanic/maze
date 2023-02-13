@@ -24,6 +24,7 @@ typedef struct Cell {
 	int links_count; // numnber of links currently connected to this cell
 	bool solved; // true if distance is calculated for this cell
 	int distance; // distance in steps from root
+	char marker;
 	bool path; // currently solved path
 } Cell;
 

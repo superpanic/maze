@@ -5,6 +5,7 @@
 #define MAZE_DEBUG false
 #define LINKS_SIZE_STEP 4
 #define MAZE_TIGR
+#define DEAD_END 1
 
 static int Columns = COLS;
 static int Rows = ROWS;
@@ -114,6 +115,8 @@ int main(int argc, char *argv[]) {
 	// breadcrumbs is malloced – needs free()
 	Cell **breadcrumbs = path_to(max_distance_cell, max_distance_cell->distance);
 
+	if(Print_dead_ends_flag) printf("Dead ends: %d\n", dead_ends());
+
 	// print to terminal
 	size_t str_size = get_maze_string_size();
 	char maze_str[str_size];
@@ -129,8 +132,6 @@ int main(int argc, char *argv[]) {
 			max_distance_cell->row+1, 
 			max_distance_cell->distance);
 
-	if(Print_dead_ends_flag)
-		printf("Dead ends: %d\n", dead_ends());
 	
 	if(Performance_test_flag) {
 		int test_runs = 1000;
@@ -172,6 +173,7 @@ void init_cell(Cell *c, int column, int row) {
 	if(!c->links) die("Failed to allocate memory to cell links array.", errno);
 	c->links_count = 0;
 	c->distance = 0;
+	c->marker = ' ';
 	c->solved = false;
 	c->path = false;
 }
@@ -535,7 +537,11 @@ int dead_ends() {
 	int cell_count = Columns * Rows;
 	int deads = 0;
 	for(int i=0; i<cell_count; i++) {
-		if(Grid[i]->links_count == 1) deads++;
+		Cell *c = Grid[i];
+		if(c->links_count == DEAD_END) {
+			c->marker = '*';
+			deads++;
+		}
 	}
 	return deads;
 }
@@ -669,20 +675,21 @@ void to_string(char str_out[], size_t str_size, bool print_distances) {
 
 		for (int col = 0; col < Columns; col++) {
 			Cell *c = Grid[index_at(col, row)];
-
 			if (linked(c, c->east)) {
 				if(print_distances) {
 					if(c->path) sprintf(top_header, "%s%2d* ", top_header, c->distance);
 					else sprintf(top_header, "%s%2d  ", top_header, c->distance);
 				} else {
-					strcpy(top_header, "    ");
+					//strcpy(top_header, "    ");
+					sprintf(top_header, "%s %c  ", top_header, c->marker);
 				}
 			} else {
 				if(print_distances) {
 					if(c->path) sprintf(top_header, "%s%2d*|", top_header, c->distance);
 					else sprintf(top_header, "%s%2d |", top_header, c->distance);
 				} else {
-					strcpy(top_header, "   |");
+					//strcpy(top_header, "   |");
+					sprintf(top_header, "%s %c |", top_header, c->marker);
 				}
 			}
 			top_header += 4;
