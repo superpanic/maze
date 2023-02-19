@@ -28,6 +28,12 @@ typedef struct Cell {
 	bool path; // currently solved path
 } Cell;
 
+typedef struct Cell_node {
+	struct Cell_node *next;
+	Cell *cell;
+	int index;
+} Cell_node;
+
 static const TPixel White = {255,255,255,255};
 static const TPixel Black = {0,0,0,255};
 static const TPixel Red = {255,0,0,255};
@@ -53,8 +59,12 @@ Cell *get_random_neighbor_without_link(Cell *c);
 void binary_tree_maze();
 void sidewinder_maze();
 void aldous_broder_maze();
-void hunt_and_kill();
 void wilson_maze();
+void hunt_and_kill();
+void recursive_backtracker();
+
+void stack_push(Cell_node **stack, Cell_node *node);
+Cell_node *stack_pop(Cell_node **stack);
 
 bool array_includes_cell(Cell *arr[], Cell *c, int arr_len, int *index);
 int remove_cell_from_array(Cell *arr[], int cell_index, int length);
@@ -69,6 +79,8 @@ Cell *random_cell_from_grid(int *index);
 Cell *random_cell_from_array(Cell **array, int length, int *index);
 void clear_maze_links();
 clock_t performance_test(void (*alg)(), int runs);
+//int stack_pop(Cell *arr[], int head);
+//int stack_push(Cell *arr[], Cell *c, int arr_len, int head);
 
 size_t get_maze_string_size();
 Cell **path_to(Cell *goal, int max_path);

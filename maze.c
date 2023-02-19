@@ -11,6 +11,7 @@ static int Columns = COLS;
 static int Rows = ROWS;
 
 static Cell **Grid;
+static Cell_node back_track_stack;
 
 static bool Print_distances_flag = false;
 static bool Draw_maze_flag = false;
@@ -27,7 +28,7 @@ int main(int argc, char *argv[]) {
 	void (*maze_algorithm)();
 	maze_algorithm = &binary_tree_maze;
 
-	if(argc == 1) die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use [a]ldous broder algorithm\n -w use [w]ilson algorithm\n -h use [h[unt and kill algorithm\n-d print [d]istances\n -i draw fancy [i]mage in window using tigr\n -p [p]rint path\n -t performance [t]est\n -o save maze image to [o]utput file\n", errno);
+	if(argc == 1) die(" -b use binary algorithm (default)\n -s use sidewinder algorithm\n -a use [a]ldous broder algorithm\n -w use [w]ilson algorithm\n -h use [h]unt and kill algorithm\n -r use [r]ecursive backtracker algorithm\n -d print [d]istances\n -i draw fancy [i]mage in window using tigr\n -p [p]rint path\n -t performance [t]est\n -o save maze image to [o]utput file\n", errno);
 	int arg_head = 1;
 	if(argc >= 3) {
 		int co = atoi(argv[arg_head]);
@@ -62,6 +63,10 @@ int main(int argc, char *argv[]) {
 
 				case 'h':
 					maze_algorithm = &hunt_and_kill;
+					break;
+
+				case 'r':
+					maze_algorithm = &recursive_backtracker;
 					break;
 
 				case 'd':
@@ -472,10 +477,62 @@ void hunt_and_kill() {
 				break;
 			}
 		}
-	
 	}
 }
 
+void recursive_backtracker() {
+	Cell *c = random_cell_from_grid(NULL);
+	Cell_node *stack = NULL;
+	Cell_node *node = malloc(sizeof(Cell_node));
+	node->cell = c;
+	stack_push(&stack, node);
+	enum MODE {forward, backtrack};
+	enum MODE mode = forward;
+	while(stack != NULL) {
+		switch(mode) {
+			case forward: {
+				Cell *l = get_random_neighbor_without_link(c);
+				if(l) {
+					link_cells(c, l, true);
+					Cell_node *n = malloc(sizeof(Cell_node));
+					n->cell = l;
+					stack_push(&stack, n);
+					c = l;
+				} else {
+					mode = backtrack;
+				}
+				break;
+			}
+			case backtrack: {
+				Cell_node *n = stack_pop(&stack);
+				if(n) {
+					Cell *backtrack_cell = n->cell;
+					free(n);
+					Cell *link_cell = get_random_neighbor_without_link(backtrack_cell);
+					if(link_cell) {
+						link_cells(backtrack_cell, link_cell, true);
+						c = link_cell;
+						mode = forward;
+					}
+				}
+				break;
+			}
+		}
+	}
+}
+
+void stack_push(Cell_node **stack, Cell_node *node) {
+	node->next = *stack;
+	if(*stack == NULL) node->index = 0;
+	else node->index = (*stack)->index+1;
+	*stack = node;
+}
+
+Cell_node *stack_pop(Cell_node **stack) {
+	Cell_node *node = *stack;
+	if(node) *stack = node->next;
+	return node;
+}
 
 // ### end algorithms
 
@@ -729,7 +786,7 @@ void draw_update(int slow) {
 #ifdef MAZE_TIGR
 
 	int cell_count = size();
-	int cell_size = 16;
+	int cell_size = 8;
 	int win_width = 320;
 	int win_height = 240;
 	int half_cell_size = cell_size/2;
@@ -778,7 +835,7 @@ void draw(Cell **grid, Cell **breadcrumbs, int max_distance) {
 	
 	Tigr* screen = tigrWindow(win_width, win_height, "Maze", 0);
 	
-	int cell_size = 16;
+	int cell_size = 8;
 	int half_cell_size = cell_size/2;
 	
 	int img_width = Columns * cell_size;
