@@ -1,6 +1,6 @@
 Some C experiments from the book Mazes for Programmers by Jamis Buck.
 
-Requisites  
+**Requisites**  
 TIny GRaphics library 
 https://github.com/erkkah/tigr  
 
