@@ -519,7 +519,10 @@ void recursive_backtracker() {
 						current_cell = next_cell;
 						mode = forward;
 					}
-					if(Draw_live_flag) draw_update(5, pop_cell);
+					if(Draw_live_flag) {
+						if(next_cell) draw_update(5, next_cell);
+						else draw_update(5, pop_cell);
+					}
 				}
 				break;
 			}
