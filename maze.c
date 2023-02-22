@@ -481,37 +481,39 @@ void hunt_and_kill() {
 }
 
 void recursive_backtracker() {
-	Cell *c = random_cell_from_grid(NULL);
-	Cell_node *stack = NULL;
-	Cell_node *node = malloc(sizeof(Cell_node));
-	node->cell = c;
-	stack_push(&stack, node);
 	enum MODE {forward, backtrack};
 	enum MODE mode = forward;
+
+	Cell_node *stack = NULL;
+	Cell_node *node = malloc(sizeof(Cell_node));
+	Cell *current_cell = random_cell_from_grid(NULL);
+	node->cell = current_cell;
+	stack_push(&stack, node);
+
 	while(stack != NULL) {
 		switch(mode) {
 			case forward: {
-				Cell *l = get_random_neighbor_without_link(c);
-				if(l) {
-					link_cells(c, l, true);
-					Cell_node *n = malloc(sizeof(Cell_node));
-					n->cell = l;
-					stack_push(&stack, n);
-					c = l;
+				Cell *next_cell = get_random_neighbor_without_link(current_cell);
+				if(next_cell) {
+					link_cells(current_cell, next_cell, true);
+					Cell_node *next_node = malloc(sizeof(Cell_node));
+					next_node->cell = next_cell;
+					stack_push(&stack, next_node);
+					current_cell = next_cell;
 				} else {
 					mode = backtrack;
 				}
 				break;
 			}
 			case backtrack: {
-				Cell_node *n = stack_pop(&stack);
-				if(n) {
-					Cell *backtrack_cell = n->cell;
-					free(n);
-					Cell *link_cell = get_random_neighbor_without_link(backtrack_cell);
-					if(link_cell) {
-						link_cells(backtrack_cell, link_cell, true);
-						c = link_cell;
+				Cell_node *pop_node = stack_pop(&stack);
+				if(pop_node) {
+					Cell *pop_cell = pop_node->cell;
+					free(pop_node);
+					Cell *next_cell = get_random_neighbor_without_link(pop_cell);
+					if(next_cell) {
+						link_cells(pop_cell, next_cell, true);
+						current_cell = next_cell;
 						mode = forward;
 					}
 				}
