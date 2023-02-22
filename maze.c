@@ -332,7 +332,7 @@ void binary_tree_maze() {
 		int rnd = rand() % j;
 		Cell *neighbor = neighbors[rnd];
 		link_cells(c, neighbor, true);
-		if(Draw_live_flag) draw_update(10);
+		if(Draw_live_flag) draw_update(10, NULL);
 	}
 }
 
@@ -361,7 +361,7 @@ void sidewinder_maze() {
 				}
 			} else {
 				link_cells(c, c->east, true);
-				if(Draw_live_flag) draw_update(10);
+				if(Draw_live_flag) draw_update(10, NULL);
 			}
 		}
 	}
@@ -381,7 +381,7 @@ void aldous_broder_maze() {
 		free(neighbor_array);
 		if(n->links_count==0) {
 			link_cells(c,n, true);
-			if(Draw_live_flag) draw_update(10);
+			if(Draw_live_flag) draw_update(10, NULL);
 			unvisited -= 1;
 		}
 		c = n;
@@ -421,7 +421,7 @@ void wilson_maze() {
 
 		for(int i=0; i<path_length-1; i++) {
 			link_cells(path[i], path[i+1], true);
-			if(Draw_live_flag) draw_update(10);
+			if(Draw_live_flag) draw_update(10, NULL);
 			int index;
 			array_includes_cell(unvisited, path[i], unvisited_length, &index);
 			if(index >= 0) unvisited_length = remove_cell_from_array(unvisited, index, unvisited_length);
@@ -431,14 +431,14 @@ void wilson_maze() {
 
 // -h
 void hunt_and_kill() {
+	enum MODE {kill, hunt};
+	enum MODE mode = kill;
+
 	int cell_count = size();
 	Cell *c = random_cell_from_grid(NULL);
 	int unvisited = cell_count-1;
 	bool kill_mode = true;
 	
-	enum MODE {kill, hunt};
-	enum MODE mode = kill;
-
 	while(unvisited > 0) {
 		switch(mode) {
 			case kill: {
@@ -490,6 +490,8 @@ void recursive_backtracker() {
 	node->cell = current_cell;
 	stack_push(&stack, node);
 
+	if(Draw_live_flag) draw_start();
+
 	while(stack != NULL) {
 		switch(mode) {
 			case forward: {
@@ -503,6 +505,7 @@ void recursive_backtracker() {
 				} else {
 					mode = backtrack;
 				}
+				if(Draw_live_flag) draw_update(5, current_cell);
 				break;
 			}
 			case backtrack: {
@@ -516,6 +519,7 @@ void recursive_backtracker() {
 						current_cell = next_cell;
 						mode = forward;
 					}
+					if(Draw_live_flag) draw_update(5, pop_cell);
 				}
 				break;
 			}
@@ -784,7 +788,7 @@ void draw_start() {
 #endif
 }
 
-void draw_update(int slow) {
+void draw_update(int slow, Cell *focus) {
 #ifdef MAZE_TIGR
 
 	int cell_count = size();
@@ -809,6 +813,13 @@ void draw_update(int slow) {
 		if(!linked(c, c->east)) tigrLine(Window,x2,y1,x2,y2+1,Black);
 		if(!linked(c, c->south)) tigrLine(Window,x1,y2,x2,y2,Black);
 	}
+
+	if(focus) {
+		int x = (focus->column * cell_size) + half_cell_size + offx;
+		int y = (focus->row * cell_size) + half_cell_size + offy;
+		tigrFillCircle(Window,x,y,3,Red);
+	}
+
 	tigrUpdate(Window);
 	usleep(slow * 10000);
 

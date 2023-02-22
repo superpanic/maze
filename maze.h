@@ -86,7 +86,7 @@ size_t get_maze_string_size();
 Cell **path_to(Cell *goal, int max_path);
 void to_string(char str_out[], size_t str_size, bool print_distances);
 void draw_start();
-void draw_update(int slow);
+void draw_update(int slow, Cell *focus);
 void draw_end();
 void draw(Cell **grid, Cell **breadcrumbs, int max_distance);
 TPixel color_grid_distance(Cell *cell, int max);
