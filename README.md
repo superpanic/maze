@@ -6,6 +6,7 @@ https://github.com/erkkah/tigr
 
 Put tigr folder in project root.
 
+**Demo**  
 The recursive backtracker algorithm in action:  
 ```./maze 20 20 -r -l```
 
