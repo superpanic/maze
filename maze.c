@@ -7,6 +7,10 @@
 #define MAZE_TIGR
 #define DEAD_END 1
 
+#define ANIMATION_SPEED 5
+#define WINDOW_WIDTH 128
+#define WINDOW_HEIGHT 128
+
 static int Columns = COLS;
 static int Rows = ROWS;
 
@@ -180,6 +184,7 @@ void init_cell(Cell *c, int column, int row) {
 	c->distance = 0;
 	c->marker = ' ';
 	c->solved = false;
+	c->junction = false;
 	c->path = false;
 }
 
@@ -301,6 +306,7 @@ Cell *get_random_neighbor_without_link(Cell *c) {
 	Cell *random_cell = NULL;
 	if(counter > 0) {
 		Cell *free_cells[counter];
+		for(int i=0; i<counter; i++) free_cells[i] = NULL;
 		int head = 0;
 		for(int i=0; i<counter; i++) {
 			if(unlinked[i]->links_count==0) free_cells[head++] = unlinked[i];
@@ -332,7 +338,7 @@ void binary_tree_maze() {
 		int rnd = rand() % j;
 		Cell *neighbor = neighbors[rnd];
 		link_cells(c, neighbor, true);
-		if(Draw_live_flag) draw_update(10, NULL);
+		if(Draw_live_flag) draw_update(ANIMATION_SPEED, NULL);
 	}
 }
 
@@ -361,7 +367,7 @@ void sidewinder_maze() {
 				}
 			} else {
 				link_cells(c, c->east, true);
-				if(Draw_live_flag) draw_update(10, NULL);
+				if(Draw_live_flag) draw_update(ANIMATION_SPEED, NULL);
 			}
 		}
 	}
@@ -381,7 +387,7 @@ void aldous_broder_maze() {
 		free(neighbor_array);
 		if(n->links_count==0) {
 			link_cells(c,n, true);
-			if(Draw_live_flag) draw_update(10, NULL);
+			if(Draw_live_flag) draw_update(ANIMATION_SPEED, NULL);
 			unvisited -= 1;
 		}
 		c = n;
@@ -421,7 +427,7 @@ void wilson_maze() {
 
 		for(int i=0; i<path_length-1; i++) {
 			link_cells(path[i], path[i+1], true);
-			if(Draw_live_flag) draw_update(10, NULL);
+			if(Draw_live_flag) draw_update(ANIMATION_SPEED, NULL);
 			int index;
 			array_includes_cell(unvisited, path[i], unvisited_length, &index);
 			if(index >= 0) unvisited_length = remove_cell_from_array(unvisited, index, unvisited_length);
@@ -484,64 +490,50 @@ void recursive_backtracker() {
 	enum MODE {forward, backtrack};
 	enum MODE mode = forward;
 
-	Cell_node *stack = NULL;
-	Cell_node *node = malloc(sizeof(Cell_node));
+	Stack_control *stack = NULL;
 	Cell *current_cell = random_cell_from_grid(NULL);
-	node->cell = current_cell;
-	stack_push(&stack, node);
+	push_stack(&stack, current_cell);
 
-	if(Draw_live_flag) draw_start();
-
+	if(Draw_live_flag) {
+		draw_start();
+		draw_update(ANIMATION_SPEED, current_cell);
+	}
+	
 	while(stack != NULL) {
-		switch(mode) {
-			case forward: {
-				Cell *next_cell = get_random_neighbor_without_link(current_cell);
-				if(next_cell) {
-					link_cells(current_cell, next_cell, true);
-					Cell_node *next_node = malloc(sizeof(Cell_node));
-					next_node->cell = next_cell;
-					stack_push(&stack, next_node);
-					current_cell = next_cell;
-				} else {
-					mode = backtrack;
-				}
-				if(Draw_live_flag) draw_update(5, current_cell);
-				break;
-			}
-			case backtrack: {
-				Cell_node *pop_node = stack_pop(&stack);
-				if(pop_node) {
-					Cell *pop_cell = pop_node->cell;
-					free(pop_node);
-					Cell *next_cell = get_random_neighbor_without_link(pop_cell);
-					if(next_cell) {
-						link_cells(pop_cell, next_cell, true);
-						current_cell = next_cell;
-						mode = forward;
-					}
-					if(Draw_live_flag) {
-						if(next_cell) draw_update(5, next_cell);
-						else draw_update(5, pop_cell);
-					}
-				}
-				break;
-			}
-		}
+		Cell *next_cell = get_random_neighbor_without_link(current_cell);
+		if(next_cell) {
+			if(current_cell->junction) push_stack(&stack, current_cell);
+			link_cells(current_cell, next_cell, true);
+			push_stack(&stack, next_cell);
+			current_cell = next_cell;
+		} else {
+			current_cell = pop_stack(&stack);
+			if(current_cell->links_count>=2) current_cell->junction = true;			
+		}	
+		if(Draw_live_flag) draw_update(ANIMATION_SPEED, current_cell);	
 	}
 }
 
-void stack_push(Cell_node **stack, Cell_node *node) {
-	node->next = *stack;
-	if(*stack == NULL) node->index = 0;
-	else node->index = (*stack)->index+1;
-	*stack = node;
+void push_stack(Stack_control **stack, void *data) {
+	Stack_control *temp = malloc(sizeof(Stack_control));
+	temp->data = data;
+	temp->next = *stack;
+	*stack = temp;
 }
 
-Cell_node *stack_pop(Cell_node **stack) {
-	Cell_node *node = *stack;
-	if(node) *stack = node->next;
-	return node;
+void *pop_stack(Stack_control **stack) {
+	void *data = NULL;
+	Stack_control *temp = *stack;
+	if(temp) {
+		data = temp->data;
+		*stack = temp->next;
+		free(temp);
+	}
+	return data;
 }
+
+
+
 
 // ### end algorithms
 
@@ -783,8 +775,8 @@ void to_string(char str_out[], size_t str_size, bool print_distances) {
 void draw_start() {
 #ifdef MAZE_TIGR
 
-	int win_width = 320;
-	int win_height = 240;
+	int win_width = WINDOW_WIDTH;
+	int win_height = WINDOW_HEIGHT;
 	Window = tigrWindow(win_width, win_height, "Maze", 0);
 	if(!Window) die("Failed to create tigrWindow.", errno);
 
@@ -793,11 +785,10 @@ void draw_start() {
 
 void draw_update(int slow, Cell *focus) {
 #ifdef MAZE_TIGR
-
 	int cell_count = size();
 	int cell_size = 8;
-	int win_width = 320;
-	int win_height = 240;
+	int win_width = WINDOW_WIDTH;
+	int win_height = WINDOW_HEIGHT;
 	int half_cell_size = cell_size/2;
 	int img_width = Columns * cell_size;
 	int img_height = Rows * cell_size;

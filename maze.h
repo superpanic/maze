@@ -25,6 +25,7 @@ typedef struct Cell {
 	bool solved; // true if distance is calculated for this cell
 	int distance; // distance in steps from root
 	char marker;
+	bool junction;
 	bool path; // currently solved path
 } Cell;
 
@@ -33,6 +34,12 @@ typedef struct Cell_node {
 	Cell *cell;
 	int index;
 } Cell_node;
+
+typedef struct Stack_control {
+	struct Stack_control* next;
+	void* data;
+	int index;
+} Stack_control;
 
 static const TPixel White = {255,255,255,255};
 static const TPixel Black = {0,0,0,255};
@@ -81,6 +88,8 @@ void clear_maze_links();
 clock_t performance_test(void (*alg)(), int runs);
 //int stack_pop(Cell *arr[], int head);
 //int stack_push(Cell *arr[], Cell *c, int arr_len, int head);
+void push_stack(Stack_control **stack, void *data);
+void *pop_stack(Stack_control **stack);
 
 size_t get_maze_string_size();
 Cell **path_to(Cell *goal, int max_path);
